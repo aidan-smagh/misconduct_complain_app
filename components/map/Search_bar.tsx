@@ -79,8 +79,8 @@ const Search_bar = ({ show_map_btn = true, onSearch, onSuggestionsFetch, onSugge
   };
 
   // Handle suggestion selection
-  const handleSuggestionClick = (suggestion) => {
-    setInput(suggestion.label); // Update input with the selected suggestion
+  const handleSuggestionClick = (suggestion: Suggestion) => {
+    setInput(suggestion.display_name);
     setSuggestions([]); // Clear suggestions
     if (onSuggestionClick) {
       onSuggestionClick(suggestion); // Trigger search with the selected suggestion

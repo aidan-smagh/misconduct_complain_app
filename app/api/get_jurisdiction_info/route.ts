@@ -32,7 +32,7 @@ export async function GET(req) {
     let info;
 
     try {
-      const docRef = db.doc(`filiing_info/${jurisdictionId}`);
+      const docRef = db.doc(`filing_info/${jurisdictionId}`);
       const docSnap = await docRef.get();
 
       if (docSnap.exists) {
