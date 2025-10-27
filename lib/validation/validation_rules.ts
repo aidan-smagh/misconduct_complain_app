@@ -34,3 +34,9 @@ export function isValidPassord(password: string): boolean {
 
   return true;
 }
+
+const urlValidator = Yup.string().url().required();
+
+export function isUrlValid(url) {
+  return urlValidator.isValidSync(url);
+}

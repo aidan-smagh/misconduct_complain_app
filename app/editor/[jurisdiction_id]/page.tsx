@@ -7,38 +7,17 @@ import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import * as Yup from "yup";
 
-import { VALIDATION_SCHEMA } from "@/lib/jurisdiction_info_schema";
+import { VALIDATION_SCHEMA } from "@/lib/validation/jurisdiction_info_schema";
 
-import JurisdictionSelector from "@/components/jurisdiction_info_editor/JurisdictionSelector";
-import LinkPreview from "@/components/jurisdiction_info_editor/LinkPreview";
-import FeedbackForm from "@/components/jurisdiction_info_editor/FeedbackForm";
+import JurisdictionSelector from "@/app/editor/[jurisdiction_id]/_components/JurisdictionSelector";
+import LinkPreview from "@/app/editor/[jurisdiction_id]/_components/LinkPreview";
+import FeedbackForm from "@/app/editor/[jurisdiction_id]/_components/FeedbackForm";
 import Modal from "@/components/Modal";
-import LinkVerificationButton from "@/components/jurisdiction_info_editor/LinkVerificationButton";
-import JurisdicionCreationForm from "../../../components/jurisdiction_info_editor/JurisdictionCreationForm";
-
-export interface JurisdictionFilingInfo {
-  name?: string;
-  documents: DocumentInfo[];
-  methods: MethodInfo[];
-  defer?: any;
-}
-
-interface DocumentInfo {
-  name: string;
-  url: string;
-  verified: boolean;
-}
-
-interface MethodInfo {
-  method: string;
-  values: any[];
-  notes: string;
-  accepts: string[];
-}
-
-interface GisInfo {
-  name: string;
-}
+import LinkVerificationButton from "@/app/editor/[jurisdiction_id]/_components/LinkVerificationButton";
+import JurisdicionCreationForm from "./_components/JurisdictionCreationForm";
+import { JurisdictionFilingInfo } from "@/lib/types/jurisdiction";
+import { JurisidictionGisInfo } from "@/lib/types/jurisdiction";
+import { isUrlValid } from "@/lib/validation/validation_rules";
 
 const COMMON_METHODS_META = {
   "online form": {
@@ -96,6 +75,15 @@ const ACCEPTS_OPTIONS = [
 ];
 
 // Utility functions
+function getDefaultFilingInfo() {
+  return {
+    last_updated: null,
+    defer: null,
+    methods: [],
+    documents: [],
+  }
+}
+
 function reorder(list, startIndex, endIndex) {
   const result = Array.from(list);
   const [removed] = result.splice(startIndex, 1);
@@ -104,15 +92,12 @@ function reorder(list, startIndex, endIndex) {
   return result;
 }
 
-const urlValidator = Yup.string().url().required();
-const isUrlValid = (url) => urlValidator.isValidSync(url);
-
 export default function JurisdictionInfoForm() {
   const params = useParams();
   const jurisdictionId = params.jurisdiction_id;
 
-  const [info, setInfo] = useState<JurisdictionFilingInfo>();
-  const [gisInfo, setGisInfo] = useState<GisInfo>();
+  const [filingInfo, setFilingInfo] = useState<JurisdictionFilingInfo>();
+  const [gisInfo, setGisInfo] = useState<JurisidictionGisInfo>();
   const [isPending, setIsPending] = useState(true);
   const [error, setError] = useState(null);
 
@@ -130,18 +115,15 @@ export default function JurisdictionInfoForm() {
         }
         
         const data = await res.json();
-        const { gisInfo, info } = data;
+        const gisInfo = data.gisInfo;
+        const filingInfo = data.filingInfo ?? getDefaultFilingInfo();
 
         // Mark all existing URLs are verified
-        const documents = info.documents;
-
-        for (let doc of documents) {
+        for (let doc of filingInfo.documents) {
           doc.verified = true;
         }
 
-        const methods = info.methods;
-
-        for (let method of methods) {
+        for (let method of filingInfo.methods) {
           if (method.method === "online form") {
             for (let vIdx = 0; vIdx < method.values.length; vIdx++) {
               method.values[vIdx] = {
@@ -153,10 +135,10 @@ export default function JurisdictionInfoForm() {
         }
 
         setGisInfo(gisInfo);
-        setInfo(info);
+        setFilingInfo(filingInfo);
         setIsPending(false);
-      } catch (err) {
-        setError(err);
+      } catch (error) {
+        setError(error);
         setIsPending(false);
       }
     };
@@ -191,7 +173,7 @@ export default function JurisdictionInfoForm() {
   return (
     <div className="min-h-screen flex justify-center bg-gray-50">
       <Formik
-        initialValues={info}
+        initialValues={filingInfo}
         validationSchema={VALIDATION_SCHEMA}
         onSubmit={async (values) => {
           try {

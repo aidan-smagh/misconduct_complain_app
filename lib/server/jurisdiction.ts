@@ -1,11 +1,12 @@
 import { db } from '@/firebaseConfig';
+import { JurisidictionGisInfo } from "../types/jurisdiction";
 
 export async function getAllGisData() {
   try {
     const docRef = db.doc("gis/index");
     const docSnap = await docRef.get();
     
-    return docSnap.data();
+    return docSnap.data() as Record<string, JurisidictionGisInfo>;
   } catch (error) {
     return null;
   }
@@ -27,6 +28,6 @@ export async function doesJurisdictionExist(id) {
 
     return id in data;
   } catch (error) {
-    return undefined;
+    return false;
   }
 }

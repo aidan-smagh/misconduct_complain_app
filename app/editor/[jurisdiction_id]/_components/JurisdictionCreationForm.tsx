@@ -1,4 +1,4 @@
-import { VALIDATION_SCHEMA } from "@/lib/jurisdiction_creator_schema";
+import { VALIDATION_SCHEMA } from "@/lib/validation/jurisdiction_creator_schema";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { useRouter } from "next/navigation";
 

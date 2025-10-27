@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import Modal from '@/components/Modal';
-import { VALIDATION_SCHEMA } from '@/lib/code_account_schema';
+import { VALIDATION_SCHEMA } from '@/lib/validation/code_account_schema';
 
 const wordPool = [
   'thicket', 'garnet', 'velvet', 'hollow', 'ember', 'marble', 'cobble', 'bramble',
@@ -75,10 +75,10 @@ export default function CodeAccountForm({ onAccountCreated }) {
       validationSchema={VALIDATION_SCHEMA}
       onSubmit={async (values, { resetForm }) => {
         try {
-          const res = await fetch('/api/create_account', {
+          const res = await fetch('/api/create_code_account', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'code', data: values }),
+            body: JSON.stringify(values),
           });
 
           if (!res.ok) {

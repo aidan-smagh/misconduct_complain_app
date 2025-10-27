@@ -1,12 +1,12 @@
 "use client";
 
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
-import { VALIDATION_SCHEMA } from "@/lib/record_schema";
+import { VALIDATION_SCHEMA } from "@/lib/validation/record_schema";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 
 const JurisdictionSelector = dynamic(
-  () => import("@/components/jurisdiction_info_editor/JurisdictionSelector"),
+  () => import("@/app/editor/[jurisdiction_id]/_components/JurisdictionSelector"),
   { ssr: false }
 );
 

@@ -1,7 +1,7 @@
-import { doesJurisdictionExist } from "@/lib/jurisdiction";
-import { NextResponse } from "next/server";
+import { doesJurisdictionExist } from "@/lib/server/jurisdiction";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   try {
     // Get user submission
     let name;

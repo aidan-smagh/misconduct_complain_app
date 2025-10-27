@@ -1,34 +1,28 @@
-import { NextResponse } from "next/server";
-import { VALIDATION_SCHEMA } from "@/lib/editor_feedback_schema";
+import { NextRequest, NextResponse } from "next/server";
+import { VALIDATION_SCHEMA } from "@/lib/validation/editor_feedback_schema";
 import { db } from "@/firebaseConfig";
 
-export async function POST(req) {
+export async function POST(req: NextRequest) {
+  // Get user submission
+  let data;
+
   try {
-    // Get user submission
-    let data;
+    data = await req.json();
+  } catch {
+    return new NextResponse(null, { status: 400 });
+  }
 
-    try {
-        data = await req.json();
-    } catch {
-        return new NextResponse(null, { status: 400 });
-    }
+  // Validate submission
+  if (!VALIDATION_SCHEMA.isValidSync(data)) {
+    return new NextResponse(null, { status: 400 });
+  }
 
-    // Validate submission
-    try {
-        await VALIDATION_SCHEMA.validate(data);
-    } catch (error) {
-        return new NextResponse(null, { status: 400 });
-    }
+  // Add to database
+  try {
+    const colRef = db.collection("feedback");
+    await colRef.add(data);
 
-    // Add to database
-    try {
-        const colRef = db.collection("feedback");
-        await colRef.add(data);
-
-        return new NextResponse(null, { status: 200 });
-    } catch (error) {
-        return new NextResponse(null, { status: 500 });
-    }
+    return new NextResponse(null, { status: 200 });
   } catch (error) {
     return new NextResponse(null, { status: 500 });
   }

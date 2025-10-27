@@ -1,15 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { booleanPointInPolygon } from "@turf/turf";
 import { db } from "@/firebaseConfig";
-import { getAllGisData } from "@/lib/jurisdiction";
+import { getAllGisData } from "@/lib/server/jurisdiction";
 import type { FeatureCollection, Polygon, MultiPolygon } from "geojson";
 import jurisdictionBoundsJson from "@/lib/gis/AlleghenyCountyMunicipalBoundaries_6404275282653601599.json";
 
 const jurisdictionBounds: FeatureCollection<Polygon | MultiPolygon> = jurisdictionBoundsJson as FeatureCollection<Polygon | MultiPolygon>;
 
-async function getJurisdictionName(id) {
+async function getJurisdictionGis(id) {
   const index = await getAllGisData();
-  return index[id].name;
+  return index[id];
 }
 
 async function getFilingInfo(id) {
@@ -19,29 +19,24 @@ async function getFilingInfo(id) {
   return infoSnap.exists ? infoSnap.data() : null;
 }
 
-export async function GET(req) {
+export async function GET(req: NextRequest) {
   // Get coordinates
-  const { searchParams } = new URL(req.url);
-  const lat = searchParams.get('lat');
-  const lon = searchParams.get('lon');
+  const lat = req.nextUrl.searchParams.get("lat");
+  const lon = req.nextUrl.searchParams.get("lon");
 
+  // Check if required parameters are present
   if (!lat || !lon) {
     return new NextResponse(null, { status: 400 });
   }
   
-  let point;
-
-  try {
-    point = [lon, lat];
-  } catch (error) {
-    return new NextResponse(null, { status: 400 });
-  }
+  let point = [parseFloat(lon), parseFloat(lat)];
 
   // Find jurisdictions that contain the coordinate
+  // invalid coordinates will return no results
   const intersections = jurisdictionBounds.features.filter(f => booleanPointInPolygon(point, f));
 
   if (intersections.length == 0) {
-    return new NextResponse(null, { status: 404 });
+    return NextResponse.json(null);
   }
   
   // Use the first match for now
@@ -54,11 +49,11 @@ export async function GET(req) {
     filingInfo = await getFilingInfo(filingInfo.defer);
   }
 
-  let name = await getJurisdictionName(matched_id);
+  let jurisdictionGis = await getJurisdictionGis(matched_id);
 
   return NextResponse.json({
     id: matched_id,
-    name: name,
-    info: filingInfo
+    gis: jurisdictionGis,
+    filing: filingInfo
   });
 }

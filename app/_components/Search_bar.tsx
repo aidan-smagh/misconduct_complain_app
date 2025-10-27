@@ -1,10 +1,10 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { Suggestion } from "./MapViewer";
+import { NominatimSuggestion } from "@/lib/types/nominatim";
 
 const Search_bar = ({ show_map_btn = true, onSearch, onSuggestionsFetch, onSuggestionClick }) => {
   const [input, setInput] = useState(""); // Manage input state
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]); // Manage suggestions state
+  const [suggestions, setSuggestions] = useState<NominatimSuggestion[]>([]); // Manage suggestions state
   const [loading, setLoading] = useState(false);
 
   const searchInputRef = useRef(null);
@@ -67,7 +67,6 @@ const Search_bar = ({ show_map_btn = true, onSearch, onSuggestionsFetch, onSugge
       debounceTimeoutRef.current = setTimeout(async () => {
         try {
           const fetchedSuggestions = await onSuggestionsFetch(value);
-          console.log("Fetched Suggestions:", fetchedSuggestions);
           setSuggestions(fetchedSuggestions); // Update suggestions state
         } catch (err) {
           console.error("Failed to fetch suggestions:", err);
@@ -79,7 +78,7 @@ const Search_bar = ({ show_map_btn = true, onSearch, onSuggestionsFetch, onSugge
   };
 
   // Handle suggestion selection
-  const handleSuggestionClick = (suggestion: Suggestion) => {
+  const handleSuggestionClick = (suggestion: NominatimSuggestion) => {
     setInput(suggestion.display_name);
     setSuggestions([]); // Clear suggestions
     if (onSuggestionClick) {

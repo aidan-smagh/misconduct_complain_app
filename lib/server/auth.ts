@@ -1,18 +1,9 @@
 import { auth, db } from "@/firebaseConfig";
-import { cookies } from "next/headers";
 import * as argon2 from 'argon2';
 import { ResponseCookie } from "next/dist/compiled/@edge-runtime/cookies";
-import { isValidEmail, isValidPassord, isValidUsername } from "./validation_rules";
-
-interface AccountData {
-  dateCreated: Date;
-}
-
-interface StandardAccount {
-  identifier: string;
-  password: string;
-  accountId: string;
-}
+import { isValidEmail, isValidPassord, isValidUsername } from "@/lib/validation/validation_rules";
+import { StandardAccount } from "../types/auth";
+import { AccountData } from "../types/account";
 
 const expiresIn = 7 * 24 * 60 * 60; // 7 days
 

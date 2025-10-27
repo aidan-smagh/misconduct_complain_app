@@ -1,5 +1,5 @@
 import { Formik, Form, Field, ErrorMessage } from 'formik';
-import { VALIDATION_SCHEMA } from '@/lib/standard_account_schema';
+import { VALIDATION_SCHEMA } from '@/lib/validation/standard_account_schema';
 
 export default function StandardAccountForm({ onAccountCreated }) {
   return (
@@ -8,10 +8,10 @@ export default function StandardAccountForm({ onAccountCreated }) {
       validationSchema={VALIDATION_SCHEMA}
       onSubmit={async (values, { resetForm }) => {
         try {
-          const res = await fetch('/api/create_account', {
+          const res = await fetch('/api/create_standard_account', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'standard', data: values }),
+            body: JSON.stringify(values),
           });
 
           if (!res.ok) {

@@ -4,11 +4,11 @@ import React, { useState } from "react";
 import dynamic from "next/dynamic";
 
 const MapViewer = dynamic(
-  () => import("@/components/map/MapViewer"),
+  () => import("@/app/_components/MapViewer"),
   { ssr: false }
 );
 
-import DescriptionSection from "@/components/map/DescriptionSection";
+import DescriptionSection from "@/app/_components/DescriptionSection";
 
 const HomePage = () => {
   const [expanded, setExpanded] = useState(false);

@@ -2,6 +2,11 @@ import { findJurisdictionsByName } from "@/services/JurisdictionGisService";
 import { useCallback, useEffect, useState } from "react";
 import AsyncSelect from "react-select/async";
 
+interface Option {
+  value: string;
+  label: string;
+}
+
 export default function JurisdictionSelector({
   value,
   exclude,
@@ -13,7 +18,7 @@ export default function JurisdictionSelector({
   onChange?: (value: any) => void;
   onBlur?: () => void;
 }) {
-  const [defaultOptions, setDefaultOptions] = useState();
+  const [defaultOptions, setDefaultOptions] = useState<Option[]>();
 
   const loadOptions = useCallback(
     async (inputValue: string) => {
@@ -34,7 +39,6 @@ export default function JurisdictionSelector({
       } catch {
 
       }
-
     }
 
     loadAll();

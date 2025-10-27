@@ -4,9 +4,9 @@
 import { useState, Suspense } from "react";
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
-import { isValidRedirect } from '@/lib/validation_rules';
-import StandardAccountForm from "@/components/community_records/StandardAccountForm";
-import CodeAccountForm from "@/components/community_records/CodeAccountForm";
+import { isValidRedirect } from '@/lib/validation/validation_rules';
+import StandardAccountForm from "@/app/create_account/_components/StandardAccountForm";
+import CodeAccountForm from "@/app/create_account/_components/CodeAccountForm";
 
 
 export default function CreateAccountPage() {

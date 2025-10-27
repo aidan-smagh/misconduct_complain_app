@@ -9,33 +9,13 @@ import SearchSection from "./SearchSection";
 import InfoModal from "./InfoModal";
 import CoordinateInfoModal from "./CoordinateInfoModal";
 import polylabel from "polylabel";
+import { NominatimSuggestion } from "@/lib/types/nominatim";
 
 interface SelectedLocation {
   lat: number;
   lng: number;
   content: React.ReactNode;
 };
-
-export interface Suggestion {
-  addresstype: string;
-  boundingbox: [string, string, string, string];
-  category: string;
-  display_name: string;
-  geojson: {
-    coordinates: [[[number]]];
-    type: string;
-  };
-  importance: number;
-  lat: string;
-  lon: string;
-  licence: string;
-  name: string;
-  osm_id: number;
-  osm_type: string;
-  place_id: number;
-  place_rank: number;
-  type: string;
-}
 
 const SetMapRef: React.FC<{ mapRef: React.RefObject<LeafletMapType> }> = ({ mapRef }) => {
   const map = useMap();
@@ -56,7 +36,7 @@ const MapClickHandler: React.FC<{ onClick: (lat: number, lng: number) => void }>
 
 function MapViewer() {
   const mapRef = useRef<LeafletMapType | null>(null);
-  const suggestionCacheRef = useRef<Suggestion[]>([]);
+  const suggestionCacheRef = useRef<NominatimSuggestion[]>([]);
 
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const [showInfoCard, setShowInfoCard] = useState(false);
@@ -105,17 +85,17 @@ function MapViewer() {
     }
   }
 
-  const fetchSuggestions = async (query: string): Promise<Suggestion[]> => {
+  const fetchSuggestions = async (query: string): Promise<NominatimSuggestion[]> => {
     query = query.trim();
     if (!query) return [];
 
-    const results = await geocodeAddress(query) as Suggestion[];
+    const results = await geocodeAddress(query) as NominatimSuggestion[];
     suggestionCacheRef.current = results ? results : [];
 
     return suggestionCacheRef.current;
   };
 
-  const showSuggestionOnMap = async (suggestion: Suggestion) => {
+  const showSuggestionOnMap = async (suggestion: NominatimSuggestion) => {
     const point = polylabel(suggestion.geojson.coordinates, 0.000001); // Find pole of inaccessibility
     const [lng, lat] = point;
     const [south, north, west, east] = suggestion.boundingbox.map(Number);
@@ -161,11 +141,11 @@ function MapViewer() {
     }
   }
 
-  const onSuggestionClick = async (suggestion: Suggestion) => {
+  const onSuggestionClick = async (suggestion: NominatimSuggestion) => {
     showSuggestionOnMap(suggestion);
   }
 
-  const locateUser = useCallback(() => {
+  const locateUser = () => {
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser.");
       return;
@@ -192,7 +172,7 @@ function MapViewer() {
         console.error("Geolocation error:", error);
       }
     );
-  }, [showInfoForCoordinates]);
+  };
 
   return (
     <>
