@@ -4,7 +4,7 @@ import { JurisdictionFilingInfo, JurisdictionInfo } from "@/lib/types/jurisdicti
 import React from "react";
 
 interface CoordinateInfoModalProps {
-  gisData: any;
+  nominatimData: any;
   jurisdictionInfo?: JurisdictionInfo;
 };
 
@@ -47,7 +47,7 @@ const METHOD_METADATA: Record<string, MethodMetadata> = {
   },
 };
 
-export default function CoordinateInfoModal({ gisData, jurisdictionInfo }: CoordinateInfoModalProps) {
+export default function CoordinateInfoModal({ nominatimData, jurisdictionInfo }: CoordinateInfoModalProps) {
   return (
     <div>
       {/* Jurisdiction name */}
@@ -64,8 +64,8 @@ export default function CoordinateInfoModal({ gisData, jurisdictionInfo }: Coord
         overflowWrap: "anywhere"
       }}>
         <span className="font-bold">Address: </span>
-        {gisData ? (
-          gisData.display_name
+        {nominatimData ? (
+          nominatimData.display_name
         ) : (
           <span className="text-gray-500">No address available</span>
         )}

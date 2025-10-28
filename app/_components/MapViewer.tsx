@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef, useState, useEffect } from "react";
-import { MapContainer, TileLayer, Popup, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, Popup, useMap, useMapEvents } from "react-leaflet";
 import { Map as LeafletMapType } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -11,17 +11,24 @@ import CoordinateInfoModal from "./CoordinateInfoModal";
 import { NominatimSuggestion } from "@/lib/types/nominatim";
 import { getInteriorPoint } from "@/lib/util/geojson";
 
+import allJurisdictions from "@/lib/gis/AlleghenyCountyMunicipalBoundaries_6404275282653601599.json";
+import { FeatureCollection } from "geojson";
+import { JurisdictionInfo } from "@/lib/types/jurisdiction";
+
 interface SelectedLocation {
   lat: number;
   lng: number;
   content: React.ReactNode;
+  jurisdiction: JurisdictionInfo;
 };
 
 const SetMapRef: React.FC<{ mapRef: React.RefObject<LeafletMapType> }> = ({ mapRef }) => {
   const map = useMap();
+
   useEffect(() => {
     mapRef.current = map;
   }, [map, mapRef]);
+
   return null;
 };
 
@@ -31,6 +38,16 @@ const MapClickHandler: React.FC<{ onClick: (lat: number, lng: number) => void }>
       onClick(e.latlng.lat, e.latlng.lng);
     },
   });
+  return null;
+};
+
+const PopupCloseHandler: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  useMapEvents({
+    popupclose(e) {
+      onClose();
+    }
+  });
+
   return null;
 };
 
@@ -46,6 +63,7 @@ function MapViewer() {
       lat,
       lng,
       content: <div className="w-64">Loading...</div>,
+      jurisdiction: null
     });
 
     if (recenter && mapRef.current) {
@@ -54,26 +72,15 @@ function MapViewer() {
 
     try {
       // Reverse geocode
-      const gisData = await reverseGeocode(lat, lng);
-
-      if (!gisData) {
-        setSelected({
-          lat,
-          lng,
-          content: <div className="w-64">Address not found</div>,
-        });
-        return;
-      }
-
-      // Find jurisdiction data
-      const jurisdictionInfo = await findJurisdictionByCoordinate(lat, lng);
+      const [nominatimData, jurisdictionInfo] = await Promise.all([await reverseGeocode(lat, lng), await findJurisdictionByCoordinate(lat, lng)])
 
       setSelected({
         lat,
         lng,
         content: (
-          <CoordinateInfoModal gisData={gisData} jurisdictionInfo={jurisdictionInfo} />
+          <CoordinateInfoModal nominatimData={nominatimData} jurisdictionInfo={jurisdictionInfo} />
         ),
+        jurisdiction: jurisdictionInfo
       });
     } catch (err) {
       console.error("Error fetching info by coordinates:", err);
@@ -81,6 +88,7 @@ function MapViewer() {
         lat,
         lng,
         content: <div className="w-64">Error fetching data</div>,
+        jurisdiction: null
       });
     }
   }
@@ -97,19 +105,13 @@ function MapViewer() {
 
   const showSuggestionOnMap = async (suggestion: NominatimSuggestion) => {
     const point = getInteriorPoint(suggestion.geojson);
-    
+
     if (!point) {
       return;
     }
 
     const [lng, lat] = point;
     const [south, north, west, east] = suggestion.boundingbox.map(Number);
-
-    setSelected({
-      lat,
-      lng,
-      content: <div className="w-64">Loading...</div>,
-    });
 
     if (mapRef.current) {
       mapRef.current.fitBounds(
@@ -160,12 +162,6 @@ function MapViewer() {
       (position) => {
         const { latitude, longitude } = position.coords;
 
-        setSelected({
-          lat: latitude,
-          lng: longitude,
-          content: <div className="w-64">Loading...</div>,
-        });
-
         if (mapRef.current) {
           mapRef.current.setView([latitude, longitude], 14);
         }
@@ -206,9 +202,18 @@ function MapViewer() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
 
+          {selected && selected.jurisdiction && (
+            <GeoJSON key={selected.jurisdiction.id} data={selected.jurisdiction.outline} />
+          )}
+
           <SetMapRef mapRef={mapRef} />
 
           <MapClickHandler onClick={(lat, lng) => showInfoForCoordinates(lat, lng, false)} />
+          <PopupCloseHandler onClose={() => {
+            if (selected && selected.jurisdiction) {
+              setSelected(null);
+            }
+          }} />
 
           {selected && (
             <Popup position={[selected.lat, selected.lng]} closeOnClick={false} autoClose={false}>

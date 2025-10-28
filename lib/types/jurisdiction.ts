@@ -1,7 +1,10 @@
+import { GeometryCollection } from "geojson";
+
 export interface JurisdictionInfo {
   id: string;
   gis: JurisidictionGisInfo;
   filing: JurisdictionFilingInfo;
+  outline: GeometryCollection;
 }
 
 export interface JurisidictionGisInfo {
