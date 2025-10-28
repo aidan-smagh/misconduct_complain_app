@@ -3,3 +3,7 @@ export interface StandardAccount {
   identifier: string;
   password: string;
 }
+
+export interface CodeAccount {
+  accountId: string;
+}

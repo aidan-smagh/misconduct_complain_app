@@ -1,6 +1,6 @@
+import { loginStandardAccount } from '@/lib/server/auth';
 import { VALIDATION_SCHEMA } from '@/lib/validation/standard_account_schema';
 import { NextRequest, NextResponse } from 'next/server';
-import { createEmailAccount, createUsernameAccount, login } from '@/lib/server/auth';
 
 export async function POST(req: NextRequest) {
   let data;
@@ -22,21 +22,10 @@ export async function POST(req: NextRequest) {
     password: data.password.trim()
   }
 
-  const isEmail = data.identifier.includes('@');
-
   try {
-    const accountId = await (isEmail
-      ? createEmailAccount(data.identifier, data.password)
-      : createUsernameAccount(data.identifier, data.password));
+    const token = await loginStandardAccount(data.identifier, data.password);
 
-    if (accountId) {
-      // Success
-      const customToken = await login(accountId);
-      return NextResponse.json(customToken, { status: 200 });
-    } else {
-      // Identifier already in use
-      return new NextResponse(null, { status: 409 });
-    }
+    return token ? NextResponse.json(token, { status: 200 }) : new NextResponse(null, { status: 401 });
   } catch (error) {
     return new NextResponse(null, { status: 500 });
   }

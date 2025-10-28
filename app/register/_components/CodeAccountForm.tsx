@@ -60,7 +60,7 @@ async function getQuestions(code) {
   return result;
 }
 
-export default function CodeAccountForm({ onAccountCreated }) {
+export default function CodeAccountForm({ onSubmit }) {
   const [showConfirmChangeModal, setShowConfirmChangeModal] = useState(false);
   const [showFinalConfirmation, setShowFinalConfirmation] = useState(false);
   const [questions, setQuestions] = useState([]);
@@ -75,19 +75,11 @@ export default function CodeAccountForm({ onAccountCreated }) {
       validationSchema={VALIDATION_SCHEMA}
       onSubmit={async (values, { resetForm }) => {
         try {
-          const res = await fetch('/api/create_code_account', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(values),
-          });
+          const result = await onSubmit('/api/create_code_account', values);
 
-          if (!res.ok) {
-            alert('Submission failed. Please try again later.');
-            return;
+          if (result) {
+            resetForm();
           }
-
-          resetForm();
-          onAccountCreated(await res.json());
         } catch (error) {
           alert('Submission failed. Please try again later.');
         }
@@ -136,11 +128,10 @@ export default function CodeAccountForm({ onAccountCreated }) {
                 type="button"
                 onClick={() => setIsCodeConfirmed(true)}
                 disabled={!values.code}
-                className={`w-full py-3 rounded-md text-white text-lg font-semibold ${
-                  values.code
+                className={`w-full py-3 rounded-md text-white text-lg font-semibold ${values.code
                     ? 'bg-green-600 hover:bg-green-700'
                     : 'bg-gray-400 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 Next
               </button>
@@ -182,11 +173,10 @@ export default function CodeAccountForm({ onAccountCreated }) {
                     type="button"
                     disabled={!isValid || isSubmitting}
                     onClick={() => setShowFinalConfirmation(true)}
-                    className={`px-6 py-3 rounded-md text-white text-lg font-semibold ${
-                      isValid && !isSubmitting
+                    className={`px-6 py-3 rounded-md text-white text-lg font-semibold ${isValid && !isSubmitting
                         ? 'bg-blue-600 hover:bg-blue-700'
                         : 'bg-gray-400 cursor-not-allowed'
-                    }`}
+                      }`}
                   >
                     Create account
                   </button>
@@ -215,7 +205,7 @@ export default function CodeAccountForm({ onAccountCreated }) {
                     className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                     onClick={() => {
                       setFieldValue('code', '');
-                      setFieldValue('answers', []);
+                      setFieldValue('answers', ['', '', '']);
                       setQuestions([]);
                       setIsCodeConfirmed(false);
                       setShowConfirmChangeModal(false);

@@ -1,26 +1,15 @@
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import { VALIDATION_SCHEMA } from '@/lib/validation/standard_account_schema';
 
-export default function StandardAccountForm({ onAccountCreated }) {
+export default function StandardAccountForm({ onSubmit }) {
   return (
     <Formik
       initialValues={{ identifier: '', password: '' }}
       validationSchema={VALIDATION_SCHEMA}
       onSubmit={async (values, { resetForm }) => {
         try {
-          const res = await fetch('/api/create_standard_account', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(values),
-          });
-
-          if (!res.ok) {
-            alert('Submission failed. Please try again later.');
-            return;
-          }
-
+          await onSubmit('/api/create_standard_account', values);
           resetForm();
-          onAccountCreated(await res.json());
         } catch (error) {
           alert('Submission failed. Please try again later.');
         }

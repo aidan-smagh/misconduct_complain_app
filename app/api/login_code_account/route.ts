@@ -1,4 +1,4 @@
-import { createCodeAccount, login } from '@/lib/server/auth';
+import { loginCodeAccount } from '@/lib/server/auth';
 import { VALIDATION_SCHEMA } from '@/lib/validation/code_account_schema';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -23,18 +23,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const accountId = await createCodeAccount(data.code, data.answers);
+    const token = await loginCodeAccount(data.code, data.answers);
 
-    if (accountId) {
-      // Success
-      const customToken = await login(accountId);
-      return NextResponse.json(customToken, { status: 200 });
-    } else {
-      // Code and answer combination already exists
-      return new NextResponse(null, { status: 409 });
-    }
+    return token ? NextResponse.json(token, { status: 200 }) : new NextResponse(null, { status: 401 });
   } catch (error) {
-    // Server error
     return new NextResponse(null, { status: 500 });
   }
 }

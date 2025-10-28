@@ -20,6 +20,10 @@ export function isValidUsername(value: string) {
     return false;
   }
 
+  if (trimmed.length > 32) {
+    return false;
+  }
+
   return /^[a-zA-Z0-9_]+$/.test(value);
 }
 

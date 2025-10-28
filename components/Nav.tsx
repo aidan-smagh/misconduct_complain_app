@@ -1,10 +1,32 @@
 "use client";
-import Link from "next/link";
-import Image from "next/image";
+
 import { useState } from "react";
+import { auth } from "@/lib/client/firebaseConfig";
+import { signOut } from "firebase/auth";
 
 const Nav = () => {
+  const [authReady, setAuthReady] = useState(false);
+  const [user, setUser] = useState(null);
+
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Set user when auth is initialized
+  if (!authReady) {
+    auth.authStateReady().then(() => {
+      setUser(auth.currentUser);
+      setAuthReady(true);
+    });
+  }
+
+  const logout = async () => {
+    try {
+      signOut(auth);
+      location.reload();
+    } catch {
+
+    }
+  }
+
   return (
     <>
       <nav className="bg-white border-gray-200 dark:bg-gray-900">
@@ -53,19 +75,33 @@ const Nav = () => {
                          dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700"
             >
               <li>
-                <a href="/" className="nav_button">
+                <a href="/" className="nav-button">
                   Home
                 </a>
               </li>
               <li>
-                <a href="/about" className="nav_button">
+                <a href="/about" className="nav-button">
                   About
                 </a>
               </li>
               <li>
-                <a href="/editor" className="nav_button">
+                <a href="/editor" className="nav-button">
                   Contribute Filing Information
                 </a>
+              </li>
+              <li>
+                <div className="w-10">
+                  {authReady ?
+                    (user ? (
+                      <div onClick={logout} className="login-logout">
+                        Logout
+                      </div>
+                    ) : (
+                      <a href="/login" className="login-logout">
+                        Login
+                      </a>
+                    )) : null}
+                </div>
               </li>
             </ul>
           </div>

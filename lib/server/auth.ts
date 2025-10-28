@@ -2,7 +2,7 @@ import { auth, db } from "@/firebaseConfig";
 import * as argon2 from 'argon2';
 import { ResponseCookie } from "next/dist/compiled/@edge-runtime/cookies";
 import { isValidEmail, isValidPassord, isValidUsername } from "@/lib/validation/validation_rules";
-import { StandardAccount } from "../types/auth";
+import { CodeAccount, StandardAccount } from "../types/auth";
 import { AccountData } from "../types/account";
 
 const expiresIn = 7 * 24 * 60 * 60; // 7 days
@@ -19,6 +19,11 @@ async function hashPassword(password: string) {
 
 async function verifyPassword(digest: string, password: string) {
   return argon2.verify(digest, password);
+}
+
+async function hashCodeAccountDetails(code: string, answers: string[]) {
+  const identifier = code + "\0" + answers.join("\0");
+  return (await argon2.hash(identifier)).replace("/", "\\");
 }
 
 // Creates a new account and returns the unique account ID
@@ -44,20 +49,19 @@ export async function login(id: string) {
 // Creates an account that uses a unique identifier and password
 async function createStandardAccount(identifier: string, password: string) {
   let docRef = db.doc(`standardUsers/${identifier}`);
-  
+
   // Ensure identifier doesn't already exist
   const user = await docRef.get();
-  
+
   if (user.exists) {
     return null;
   }
-  
+
   // Create account data object
   const accountId = await createAccount();
 
   // Store credentials
   const credentials = {
-    identifier,
     password: await hashPassword(password),
     accountId
   }
@@ -82,13 +86,39 @@ export async function createUsernameAccount(username: string, password: string) 
   if (!isValidUsername(username) || !isValidPassord(password)) {
     return null;
   }
-  
+
   return await createStandardAccount(username, password);
+}
+
+export async function createCodeAccount(code: string, answers: string[]) {
+  const hash = hashCodeAccountDetails(code, answers);
+
+  const userRef = db.doc(`codeUsers/${hash}`);
+
+  // Ensure identifier doesn't already exist
+  const userSnap = await userRef.get();
+
+  if (userSnap.exists) {
+    return null;
+  }
+
+  // Create account data object
+  const accountId = await createAccount();
+
+  // Store credentials
+  const credentials = {
+    accountId
+  }
+
+  await userRef.set(credentials);
+
+  // Return account id
+  return accountId;
 }
 
 export async function loginStandardAccount(identifier: string, password: string) {
   // Check if identifier exists
-  const userRef = db.doc(`users/standard/${identifier}`);
+  const userRef = db.doc(`standardUsers/${identifier}`);
   const userSnap = await userRef.get();
 
   if (!userSnap.exists) {
@@ -96,9 +126,9 @@ export async function loginStandardAccount(identifier: string, password: string)
   }
 
   // Verify password
-  const accountCredentials: StandardAccount = userSnap.data() as StandardAccount;
+  const accountCredentials = userSnap.data() as StandardAccount;
 
-  if (verifyPassword(accountCredentials.password, password)) {
+  if (!(await verifyPassword(accountCredentials.password, password))) {
     return null;
   }
 
@@ -106,10 +136,20 @@ export async function loginStandardAccount(identifier: string, password: string)
   return await login(accountCredentials.accountId);
 }
 
-export async function loginEmailAccount(email: string, password: string) {
-  return await loginStandardAccount(email, password);
-}
+export async function loginCodeAccount(code: string, answers: string[]) {
+  const hash = hashCodeAccountDetails(code, answers);
 
-export async function loginUsernameAccount(username: string, password: string) {
-  return await loginStandardAccount(username, password);
+  // Check if identifier exists
+  const userRef = db.doc(`codeUsers/${hash}`);
+  const userSnap = await userRef.get();
+
+  if (!userSnap.exists) {
+    return null;
+  }
+
+  // Create account data object
+  const accountCredentials = userSnap.data() as CodeAccount;
+
+  // Return account id
+  return await login(accountCredentials.accountId);
 }
