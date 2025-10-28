@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { MapContainer, TileLayer, Popup, useMap, useMapEvents } from "react-leaflet";
 import { Map as LeafletMapType } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -8,8 +8,8 @@ import { geocodeAddress, reverseGeocode, findJurisdictionByCoordinate } from "@/
 import SearchSection from "./SearchSection";
 import InfoModal from "./InfoModal";
 import CoordinateInfoModal from "./CoordinateInfoModal";
-import polylabel from "polylabel";
 import { NominatimSuggestion } from "@/lib/types/nominatim";
+import { getInteriorPoint } from "@/lib/util/geojson";
 
 interface SelectedLocation {
   lat: number;
@@ -96,7 +96,12 @@ function MapViewer() {
   };
 
   const showSuggestionOnMap = async (suggestion: NominatimSuggestion) => {
-    const point = polylabel(suggestion.geojson.coordinates, 0.000001); // Find pole of inaccessibility
+    const point = getInteriorPoint(suggestion.geojson);
+    
+    if (!point) {
+      return;
+    }
+
     const [lng, lat] = point;
     const [south, north, west, east] = suggestion.boundingbox.map(Number);
 

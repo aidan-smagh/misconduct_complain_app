@@ -12,7 +12,6 @@ export const VALIDATION_SCHEMA = Yup.object({
     label: Yup.string(),
   }).noUnknown().nullable(),
   methods: Yup.array()
-    .min(1, "At least one contact method is required.")
     .of(
       Yup.object({
         method: Yup.string().trim(),

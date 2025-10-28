@@ -1,3 +1,5 @@
+import { Geometry } from "geojson";
+
 export interface NominatimError {
   error: string;
 }
@@ -7,10 +9,7 @@ export interface NominatimSuggestion {
   boundingbox: [string, string, string, string];
   category: string;
   display_name: string;
-  geojson: {
-    coordinates: [[[number]]];
-    type: string;
-  };
+  geojson: Geometry;
   importance: number;
   lat: string;
   lon: string;
