@@ -1,5 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { drawGroupedBarChart, BarData } from "./groupedBarChart";
+import * as d3 from "d3";
+
+//overflow-x-auto
 
 interface Counts {
   submitted: number;
@@ -10,6 +14,27 @@ interface Counts {
 interface CategoryCounts {
   [category: string]: Counts;
 }
+
+interface LegendProps {
+  colors: Record<string, string>; // e.g., { submitted: "red", inProgress: "orange", addressed: "green" }
+}
+
+const Legend: React.FC<LegendProps> = ({ colors }) => {
+  return (
+    <div className="flex space-x-4 mt-4">
+      {Object.entries(colors).map(([key, color]) => (
+        <div key={key} className="flex items-center space-x-1">
+          <div style={{ backgroundColor: color }} className="w-4 h-4"></div>
+          <span className="text-sm">{key}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const colorScale = d3.scaleOrdinal()
+  .domain(["submitted", "inProgress", "addressed"])
+  .range(["#f56565", "#ed8936", "#48bb78"]); // red, orange, green
 
 const Community_tracker = () => {
   const [summary, setSummary] = useState<Record<string, CategoryCounts>>({});
@@ -48,8 +73,26 @@ const Community_tracker = () => {
     setOpenDropdown((prev) => (prev === location ? null : location));
   };
 
+  useEffect(() => {
+  if (Object.keys(summary).length > 0) {
+    // Convert summary into a flat array for the D3 chart
+    const chartData: BarData[] = [];
+
+    Object.entries(summary).forEach(([location, categories]) => {
+      Object.entries(categories).forEach(([category, counts]) => {
+        chartData.push({ group: location, category: "submitted", value: counts.submitted });
+        chartData.push({ group: location, category: "inProgress", value: counts.inProgress });
+        chartData.push({ group: location, category: "addressed", value: counts.addressed });
+      });
+    });
+
+    d3.select("#chart").selectAll("*").remove(); // clear old chart
+    drawGroupedBarChart({ selector: "#chart", data: chartData });
+  }
+}, [summary]);
+
   return (
-    <div className="flex flex-col items-center min-h-screen bg-gray-100">
+    <div className="flex flex-col items-center bg-gray-100">
       <h1 className="text-3xl font-bold text-center mt-12">
         Misconduct Complaint Record From Community
       </h1>
@@ -67,8 +110,8 @@ const Community_tracker = () => {
           Update Record
         </a>
       </div>
-
-      <div className="mt-10 w-3/4 overflow-x-auto">
+      
+      <div className="mt-10 w-3/4">
         <table className="w-full min-w-[600px] border-collapse border border-gray-300 text-center">
           <thead>
             <tr className="bg-gray-900 text-white">
@@ -128,7 +171,14 @@ const Community_tracker = () => {
             )}
           </tbody>
         </table>
+        <div id="chart" className="mt-12 bg-white shadow-md p-4 rounded-md"></div>
+            <Legend colors={{
+            submitted: "#f56565",
+            inProgress: "#ed8936",
+            addressed: "#48bb78"
+            }} />
       </div>
+      <br></br>
     </div>
   );
 };

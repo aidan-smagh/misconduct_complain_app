@@ -1,0 +1,14 @@
+{
+  "name": "@d3/grouped-bar-chart/2",
+  "main": "d0b2c4b181688705@777.js",
+  "version": "777.0.0",
+  "homepage": "https://observablehq.com/@d3/grouped-bar-chart/2",
+  "author": {
+    "name": "D3",
+    "url": "https://observablehq.com/@d3"
+  },
+  "type": "module",
+  "peerDependencies": {
+    "@observablehq/runtime": "4 - 5"
+  }
+}
