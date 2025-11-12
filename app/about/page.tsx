@@ -40,15 +40,7 @@ const About = () => {
         </h1>
         <div className="bg-gray-200 p-6 rounded-lg shadow-md">
           <p className="text-gray-700 leading-relaxed">
-            Each municipality independently manages the recruitment, training,
-            and oversight of its own police force in Allegheny County. While
-            some police departments serve multiple municipalities, the majority
-            have their own independent police force. This creates significant
-            barriers to officer accountability in cases of tension due to the
-            inconsistent and hyper-fragmented nature of complaint policies,
-            procedures, and disciplinary actions. In 2021, the total police
-            expenditure was 2.4 billion dollars. The county has a total of 2,246
-            officers, with only 156 of them being part-time.
+            Each municipality in Allegheny County independently manages the recruitment, training, and oversight of its own police department. While some police departments serve across multiple municipalities, most maintain separate departments. This structure allows police departments to be responsive to local community needs, but also creates challenges in coordinating and communicating services, particularly when it comes to sharing best practices, handling complaints, and ensuring consistent transparency in law enforcement practices. This tool aims to facilitate communication between community members and law enforcement in Allegheny County to help build public trust and accountability.
           </p>
         </div>
       </div>
