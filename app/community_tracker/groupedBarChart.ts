@@ -47,7 +47,7 @@ export function drawGroupedBarChart({
     .attr("transform", `translate(0,${chartHeight})`)
     .call(d3.axisBottom(x0));
 
-  g.append("g").call(d3.axisLeft(y));
+  g.append("g").call(d3.axisLeft(y).tickValues(d3.range(0, Math.ceil(d3.max(data, d => d.value)! + 1))).tickFormat(d3.format("d")));
 
   // Tooltip
   const tooltip = d3.select("body")
@@ -85,4 +85,25 @@ export function drawGroupedBarChart({
       .on("mouseout", function () {
         tooltip.style("opacity", 0);
       });
+
+      const legend = svg.append("g")
+    .attr("transform", `translate(${margin.left}, ${height - margin.bottom + 20})`); // adjust position
+
+  subgroups.forEach((key, i) => {
+    const xOffset = i * 100;
+
+    legend.append("rect")
+      .attr("x", xOffset)
+      .attr("y", 0)
+      .attr("width", 15)
+      .attr("height", 15)
+      .attr("fill", color(key));
+
+    legend.append("text")
+      .attr("x", xOffset + 20)
+      .attr("y", 12)
+      .text(key)
+      .style("font-size", "12px")
+      .style("fill", "#000");
+  });
 }
