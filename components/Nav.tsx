@@ -108,7 +108,7 @@ const Nav = () => {
 
           {/* Dropdown Navigation (Visible when menuOpen is true) */}
           {menuOpen && (
-            <div className="fixed top-16 left-0 w-full bg-white border border-gray-200 shadow-md rounded-md z-50 md:hidden">
+            <div className="fixed top-16 left-0 w-full bg-white border border-gray-200 shadow-md rounded-md md:hidden z-10">
               <ul className="font-medium flex flex-col p-4 space-y-2">
                 <li>
                   <a href="/" className="block py-2 px-4 hover:bg-gray-100">
@@ -130,6 +130,18 @@ const Nav = () => {
                   >
                     Contribute Filing Information
                   </a>
+                </li>
+                <li>
+                  {authReady ?
+                    (user ? (
+                      <div onClick={logout} className="block py-2 px-4 hover:bg-gray-100 login-logout">
+                        Logout
+                      </div>
+                    ) : (
+                      <a href="/login" className="block py-2 px-4 hover:bg-gray-100 login-logout">
+                        Login
+                      </a>
+                    )) : null}
                 </li>
               </ul>
             </div>

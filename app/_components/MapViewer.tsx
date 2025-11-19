@@ -191,7 +191,7 @@ function MapViewer() {
         {showInfoCard && <InfoModal onClose={() => setShowInfoCard(false)} />}
       </div>
 
-      <div className="flex justify-center h-[60vh] min-h-[400px] w-full flex-shrink-0 mt-8">
+      <div className="flex justify-center h-[60vh] min-h-[400px] w-full flex-shrink-0 mt-8 z-[-1]">
         <MapContainer
           center={[40.4406, -79.9959]}
           zoom={10}
