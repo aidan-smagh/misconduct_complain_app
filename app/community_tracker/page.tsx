@@ -170,13 +170,13 @@ const Community_tracker = () => {
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [selectedTimeRange, setSelectedTimeRange] = useState('all');
 
-useEffect(() => {
-  fetchRecords();
-}, []);
+  useEffect(() => {
+    fetchRecords();
+  }, []);
 
-useEffect(() => {
-  summarizeRecords(records);
-}, [records]);
+  useEffect(() => {
+    summarizeRecords(records);
+  }, [records]);
 
   const fetchRecords = async () => {
     const req = await fetch("/api/records");
@@ -205,93 +205,93 @@ useEffect(() => {
     setOpenDropdown(prev => (prev === location ? null : location));
   };
 
-const filteredRecords = React.useMemo(() => {
-  return records.filter(record => {
-    if (selectedTimeRange === 'all') return true;
+  const filteredRecords = React.useMemo(() => {
+    return records.filter(record => {
+      if (selectedTimeRange === 'all') return true;
     
-    const recordDate = new Date(record.date);
-    const now = new Date();
-    const monthsAgo = new Date();
-    monthsAgo.setMonth(now.getMonth() - parseInt(selectedTimeRange));
+      const recordDate = new Date(record.date);
+      const now = new Date();
+      const monthsAgo = new Date();
+      monthsAgo.setMonth(now.getMonth() - parseInt(selectedTimeRange));
     
-    // Reset time to start of day for accurate comparison
-    recordDate.setHours(0, 0, 0, 0);
-    monthsAgo.setHours(0, 0, 0, 0);
+      // Reset time to start of day for accurate comparison
+      recordDate.setHours(0, 0, 0, 0);
+      monthsAgo.setHours(0, 0, 0, 0);
     
-    return recordDate >= monthsAgo;
-  });
-}, [records, selectedTimeRange]);
+      return recordDate >= monthsAgo;
+    });
+  }, [records, selectedTimeRange]);
 
-// Draw grouped bar chart
-useEffect(() => {
-  d3.select("#chart").selectAll("*").remove();
+  // Draw grouped bar chart
+  useEffect(() => {
+    d3.select("#chart").selectAll("*").remove();
   
-  if (Object.keys(summary).length > 0) {
-    const chartData: BarData[] = [];
+    if (Object.keys(summary).length > 0) {
+      const chartData: BarData[] = [];
 
-    // Create filtered summary from filteredRecords
-    const filteredSummary: Record<string, CategoryCounts> = {};
-    filteredRecords.forEach((record) => {
-      const { location, category, status } = record;
-      if (!selectedLocations.includes(location)) return;
+      // Create filtered summary from filteredRecords
+      const filteredSummary: Record<string, CategoryCounts> = {};
+      filteredRecords.forEach((record) => {
+        const { location, category, status } = record;
+        if (!selectedLocations.includes(location)) return;
       
-      if (!filteredSummary[location]) filteredSummary[location] = {};
-      if (!filteredSummary[location][category]) {
-        filteredSummary[location][category] = { submitted: 0, inProgress: 0, addressed: 0 };
-      }
-      if (status === "submitted") filteredSummary[location][category].submitted += 1;
-      else if (status === "received update") filteredSummary[location][category].inProgress += 1;
-      else if (status === "addressed") filteredSummary[location][category].addressed += 1;
-    });
-
-    if (Object.keys(filteredSummary).length === 0) {
-      // Display "no data" message
-      d3.select("#chart")
-        .append("div")
-        .attr("class", "flex items-center justify-center h-40")
-        .append("p")
-        .attr("class", "text-gray-500 text-lg")
-        .text("No data available for the selected time range and locations");
-      return;
-    }
-
-    Object.entries(filteredSummary).forEach(([location, categories]) => {
-      Object.entries(categories).forEach(([category, counts]) => {
-        chartData.push({ group: location, category: "submitted", value: counts.submitted });
-        chartData.push({ group: location, category: "inProgress", value: counts.inProgress });
-        chartData.push({ group: location, category: "addressed", value: counts.addressed });
+        if (!filteredSummary[location]) filteredSummary[location] = {};
+        if (!filteredSummary[location][category]) {
+          filteredSummary[location][category] = { submitted: 0, inProgress: 0, addressed: 0 };
+        }
+        if (status === "submitted") filteredSummary[location][category].submitted += 1;
+        else if (status === "received update") filteredSummary[location][category].inProgress += 1;
+        else if (status === "addressed") filteredSummary[location][category].addressed += 1;
       });
-    });
 
-    drawGroupedBarChart({ selector: "#chart", data: chartData });
-  }
+      if (Object.keys(filteredSummary).length === 0) {
+        // Display "no data" message
+        d3.select("#chart")
+          .append("div")
+          .attr("class", "flex items-center justify-center h-40")
+          .append("p")
+          .attr("class", "text-gray-500 text-lg")
+          .text("No data available for the selected time range and locations");
+        return;
+      }
+
+      Object.entries(filteredSummary).forEach(([location, categories]) => {
+        Object.entries(categories).forEach(([category, counts]) => {
+          chartData.push({ group: location, category: "submitted", value: counts.submitted });
+          chartData.push({ group: location, category: "inProgress", value: counts.inProgress });
+          chartData.push({ group: location, category: "addressed", value: counts.addressed });
+        });
+      });
+
+      drawGroupedBarChart({ selector: "#chart", data: chartData });
+    }
 }, [summary, selectedLocations, filteredRecords]);
 
 
+  // Draw line chart with date-based x-axis
 // Draw line chart with date-based x-axis
-// Draw line chart with date-based x-axis
-useEffect(() => {
-  // Always clear the chart first
-  d3.select("#linechart").selectAll("*").remove();
+  useEffect(() => {
+    // Always clear the chart first
+    d3.select("#linechart").selectAll("*").remove();
   
-  if (filteredRecords.length > 0 && selectedLocations.length > 0) {
-    const lineData = filteredRecords
-      .filter(r => selectedLocations.includes(r.location))
-      .map(r => ({
-        date: new Date(r.date),
-        location: r.location,
-        status: r.status === "submitted" ? "submitted" : r.status === "received update" ? "inProgress" : "addressed"
-      }));
+    if (filteredRecords.length > 0 && selectedLocations.length > 0) {
+      const lineData = filteredRecords
+        .filter(r => selectedLocations.includes(r.location))
+        .map(r => ({
+          date: new Date(r.date),
+          location: r.location,
+          status: r.status === "submitted" ? "submitted" : r.status === "received update" ? "inProgress" : "addressed"
+        }));
 
-    if (lineData.length === 0) {
-      d3.select("#linechart")
-        .append("div")
-        .attr("class", "flex items-center justify-center h-40")
-        .append("p")
-        .attr("class", "text-gray-500 text-lg")
-        .text("No data available for the selected time range and locations");
-      return;
-    }
+      if (lineData.length === 0) {
+        d3.select("#linechart")
+          .append("div")
+          .attr("class", "flex items-center justify-center h-40")
+          .append("p")
+          .attr("class", "text-gray-500 text-lg")
+          .text("No data available for the selected time range and locations");
+        return;
+      }
 
     // Aggregate by date, location, and status
     const aggregated: Record<string, Record<string, Record<string, number>>> = {};
