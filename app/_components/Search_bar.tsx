@@ -136,7 +136,7 @@ const Search_bar = ({ show_map_btn = true, onSearch, onSuggestionsFetch, onSugge
         {suggestions.length > 0 && (
           <ul
             ref={suggestionsRef}
-            className="absolute top-full left-0 w-full max-w-3xl bg-white border border-gray-300 rounded-md shadow-md mt-2"
+            className="absolute top-full left-0 w-full max-w-3xl bg-white border border-gray-300 rounded-md shadow-md mt-2 z-[1001]"
           >
             {suggestions.map((suggestion, index) => (
               <li
