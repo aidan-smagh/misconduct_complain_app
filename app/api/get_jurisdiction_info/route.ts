@@ -1,60 +1,38 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/firebaseConfig";
-import { getJurisdictionGis } from "@/lib/jurisdiction";
+import { getJurisdictionGis } from "@/lib/server/jurisdiction";
 
-function getDefaultComplaintInfo() {
-  return {
-    last_updated: null,
-    defer: null,
-    methods: [],
-    documents: [],
+export async function GET(req: NextRequest) {
+  // Validate URL parameters
+  const jurisdictionId = req.nextUrl.searchParams.get("id");
+  
+  if (!jurisdictionId) {
+    return new NextResponse(null, { status: 400 });
   }
-}
-
-export async function GET(req) {
+  
   try {
-    // Validate URL parameters
-    const { searchParams } = new URL(req.url);
-    const jurisdictionId = searchParams.get("id");
-
-    if (!jurisdictionId) {
-      return new NextResponse(null, { status: 400 });
-    }
-
     // Check if the id exists
-    const gis_info = await getJurisdictionGis(jurisdictionId);
+    const gisInfo = await getJurisdictionGis(jurisdictionId);
 
-    if (!gis_info) {
+    if (!gisInfo) {
       return new NextResponse(null, { status: 404 });
     }
 
     // Query Firestore for complaints data
-    let info;
+    const docRef = db.doc(`filing_info/${jurisdictionId}`);
+    const docSnap = await docRef.get();
+    const filingInfo = docSnap.data() ?? null;
 
-    try {
-      const docRef = db.doc(`jurisdiction_info/${jurisdictionId}`);
-      const docSnap = await docRef.get();
+    if (filingInfo && filingInfo.defer) {
+      let deferJurisdiction = await getJurisdictionGis(filingInfo.defer);
 
-      if (docSnap.exists) {
-        info = docSnap.data();
-      } else {
-        info = getDefaultComplaintInfo();
-      }
-    } catch (error) {
-      // Firestore error, probably not found
-      info = getDefaultComplaintInfo();
-    }
-
-    if (info.defer) {
-      let deferJurisdiction = await getJurisdictionGis(info.defer);
-
-      info.defer = {
-        value: info.defer,
-        label: deferJurisdiction.name
+      filingInfo.defer = {
+        value: filingInfo.defer,
+        label: deferJurisdiction ? deferJurisdiction.name : "Unknown"
       }
     }
 
-    return NextResponse.json({ info: info, gisInfo: gis_info });
+    return NextResponse.json({ gisInfo: gisInfo, filingInfo: filingInfo });
   } catch (error) {
     return new NextResponse(null, { status: 500 });
   }

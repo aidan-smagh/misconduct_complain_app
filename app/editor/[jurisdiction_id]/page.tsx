@@ -7,38 +7,17 @@ import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import * as Yup from "yup";
 
-import { VALIDATION_SCHEMA } from "@/lib/jurisdiction_info_schema";
+import { VALIDATION_SCHEMA } from "@/lib/validation/jurisdiction_info_schema";
 
-import JurisdictionSelector from "@/components/jurisdiction_info_editor/JurisdictionSelector";
-import LinkPreview from "@/components/jurisdiction_info_editor/LinkPreview";
-import FeedbackForm from "@/components/jurisdiction_info_editor/FeedbackForm";
+import JurisdictionSelector from "@/app/editor/[jurisdiction_id]/_components/JurisdictionSelector";
+import LinkPreview from "@/app/editor/[jurisdiction_id]/_components/LinkPreview";
+import FeedbackForm from "@/app/editor/[jurisdiction_id]/_components/FeedbackForm";
 import Modal from "@/components/Modal";
-import LinkVerificationButton from "@/components/jurisdiction_info_editor/LinkVerificationButton";
-import JurisdicionCreationForm from "../../../components/jurisdiction_info_editor/JurisdictionCreationForm";
-
-export interface JurisdictionFilingInfo {
-  name?: string;
-  documents: DocumentInfo[];
-  methods: MethodInfo[];
-  defer?: any;
-}
-
-interface DocumentInfo {
-  name: string;
-  url: string;
-  verified: boolean;
-}
-
-interface MethodInfo {
-  method: string;
-  values: any[];
-  notes: string;
-  accepts: string[];
-}
-
-interface GisInfo {
-  name: string;
-}
+import LinkVerificationButton from "@/app/editor/[jurisdiction_id]/_components/LinkVerificationButton";
+import JurisdicionCreationForm from "./_components/JurisdictionCreationForm";
+import { JurisdictionFilingInfo } from "@/lib/types/jurisdiction";
+import { JurisidictionGisInfo } from "@/lib/types/jurisdiction";
+import { isUrlValid } from "@/lib/validation/validation_rules";
 
 const COMMON_METHODS_META = {
   "online form": {
@@ -96,6 +75,15 @@ const ACCEPTS_OPTIONS = [
 ];
 
 // Utility functions
+function getDefaultFilingInfo() {
+  return {
+    last_updated: null,
+    defer: null,
+    methods: [],
+    documents: [],
+  }
+}
+
 function reorder(list, startIndex, endIndex) {
   const result = Array.from(list);
   const [removed] = result.splice(startIndex, 1);
@@ -104,15 +92,12 @@ function reorder(list, startIndex, endIndex) {
   return result;
 }
 
-const urlValidator = Yup.string().url().required();
-const isUrlValid = (url) => urlValidator.isValidSync(url);
-
 export default function JurisdictionInfoForm() {
   const params = useParams();
   const jurisdictionId = params.jurisdiction_id;
 
-  const [info, setInfo] = useState<JurisdictionFilingInfo>();
-  const [gisInfo, setGisInfo] = useState<GisInfo>();
+  const [filingInfo, setFilingInfo] = useState<JurisdictionFilingInfo>();
+  const [gisInfo, setGisInfo] = useState<JurisidictionGisInfo>();
   const [isPending, setIsPending] = useState(true);
   const [error, setError] = useState(null);
 
@@ -128,20 +113,17 @@ export default function JurisdictionInfoForm() {
         if (!res.ok) {
           throw new Error("Failed to fetch jurisdiction info");
         }
-        
+
         const data = await res.json();
-        const { gisInfo, info } = data;
+        const gisInfo = data.gisInfo;
+        const filingInfo = data.filingInfo ?? getDefaultFilingInfo();
 
         // Mark all existing URLs are verified
-        const documents = info.documents;
-
-        for (let doc of documents) {
+        for (let doc of filingInfo.documents) {
           doc.verified = true;
         }
 
-        const methods = info.methods;
-
-        for (let method of methods) {
+        for (let method of filingInfo.methods) {
           if (method.method === "online form") {
             for (let vIdx = 0; vIdx < method.values.length; vIdx++) {
               method.values[vIdx] = {
@@ -153,10 +135,10 @@ export default function JurisdictionInfoForm() {
         }
 
         setGisInfo(gisInfo);
-        setInfo(info);
+        setFilingInfo(filingInfo);
         setIsPending(false);
-      } catch (err) {
-        setError(err);
+      } catch (error) {
+        setError(error);
         setIsPending(false);
       }
     };
@@ -173,7 +155,7 @@ export default function JurisdictionInfoForm() {
 
   const [linkPreviewOpen, setLinkPreviewOpen] = useState(false);
   const [linkPreview, setLinkPreview] = useState({ url: "", fieldPath: null, attachedField: null });
-  
+
   const [feedbackFormOpen, setFeedbackFormOpen] = useState(false);
 
   if (!jurisdictionId || isPending) {
@@ -191,7 +173,7 @@ export default function JurisdictionInfoForm() {
   return (
     <div className="min-h-screen flex justify-center bg-gray-50">
       <Formik
-        initialValues={info}
+        initialValues={filingInfo}
         validationSchema={VALIDATION_SCHEMA}
         onSubmit={async (values) => {
           try {
@@ -202,13 +184,13 @@ export default function JurisdictionInfoForm() {
               },
               body: JSON.stringify(values),
             });
-  
+
             // Submission error
             if (!res.ok) {
               alert("Failed to update info. Please try again later.");
               return;
             }
-  
+
             // Submission success
             setFeedbackFormOpen(true);
           } catch (error) {
@@ -252,7 +234,7 @@ export default function JurisdictionInfoForm() {
                   <div className="bg-white rounded-xl shadow p-8 min-w-[28rem] max-w-[28rem] h-fit xl:sticky top-10">
                     {/* Title */}
                     <h1 className="text-2xl font-bold mb-1">{gisInfo.name}</h1>
-                    <div className="mb-6 text-sm text-gray-500"> 
+                    <div className="mb-6 text-sm text-gray-500">
                       Not the right jurisdiction?{" "}
                       <a
                         href="/editor"
@@ -265,7 +247,7 @@ export default function JurisdictionInfoForm() {
                     <div className="mb-4 text-xl font-bold text-gray-800">
                       Jurisdiction Deferment
                     </div>
-                    <div className="flex items-center gap-4 max-w-100">
+                    <div className="flex items-center gap-4">
                       {(() => {
                         // Change defer
                         const updateDefer = async (deferId) => {
@@ -286,19 +268,21 @@ export default function JurisdictionInfoForm() {
 
                         return (
                           <>
-                            <Field name="defer">
-                              {({ field }) => (
-                                <JurisdictionSelector
-                                  value={field.value}
-                                  exclude={jurisdictionId}
-                                  onChange={(option) => {
-                                    setFieldValue("defer", option);
-                                    updateDefer(option.value);
-                                  }}
-                                  onBlur={field.onBlur}
-                                />
-                              )}
-                            </Field>
+                            <div className="w-full">
+                              <Field name="defer">
+                                {({ field }) => (
+                                  <JurisdictionSelector
+                                    value={field.value}
+                                    exclude={jurisdictionId}
+                                    onChange={(option) => {
+                                      setFieldValue("defer", option);
+                                      updateDefer(option.value);
+                                    }}
+                                    onBlur={field.onBlur}
+                                  />
+                                )}
+                              </Field>
+                            </div>
                             <div
                               onClick={() => {
                                 setFieldValue("defer", null);
@@ -333,7 +317,7 @@ export default function JurisdictionInfoForm() {
                         const presentTypes = new Set(
                           values.methods.map(m => m.method)
                         );
-                        
+
                         return (
                           <div className="flex justify-between items-center">
                             {Object.entries(COMMON_METHODS_META).map(([key, type]) => (
@@ -497,193 +481,192 @@ export default function JurisdictionInfoForm() {
                                 <div ref={provided.innerRef} {...provided.droppableProps}>
                                   {values.methods.length > 0
                                     ? values.methods.map((method, idx) => {
-                                        const methodMeta = COMMON_METHODS_META[method.method] || OTHER_METHOD_META;
-                                        
-                                        return (
-                                          <Draggable
-                                            key={idx}
-                                            draggableId={idx.toString()}
-                                            index={idx}
-                                          >
-                                            {(dragProvided, dragSnapshot) => (
-                                              <div
-                                                ref={dragProvided.innerRef}
-                                                {...dragProvided.draggableProps}
-                                                className={`border rounded mb-4 relative bg-white ${
-                                                  dragSnapshot.isDragging ? "shadow-lg" : ""
+                                      const methodMeta = COMMON_METHODS_META[method.method] || OTHER_METHOD_META;
+
+                                      return (
+                                        <Draggable
+                                          key={idx}
+                                          draggableId={idx.toString()}
+                                          index={idx}
+                                        >
+                                          {(dragProvided, dragSnapshot) => (
+                                            <div
+                                              ref={dragProvided.innerRef}
+                                              {...dragProvided.draggableProps}
+                                              className={`border rounded mb-4 relative bg-white ${dragSnapshot.isDragging ? "shadow-lg" : ""
                                                 }`}
+                                            >
+                                              <div
+                                                {...dragProvided.dragHandleProps}
+                                                className="flex items-center px-6 py-2 rounded relative cursor-grab bg-gray-100 border-b border-gray-200"
                                               >
-                                                <div
-                                                  {...dragProvided.dragHandleProps}
-                                                  className="flex items-center px-6 py-2 rounded relative cursor-grab bg-gray-100 border-b border-gray-200"
+                                                {/* Drag handle */}
+                                                <span
+                                                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                                                 >
-                                                  {/* Drag handle */}
-                                                  <span
-                                                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-                                                  >
-                                                    <img src="/icons/ui/reorder.svg" alt="Reorder" className="w-6 h-6 opacity-70" />
-                                                  </span>
-                                                  <span className="mr-3 flex-shrink-0">
-                                                    <img src={methodMeta.icon} alt={methodMeta.label} className="w-7 h-7" />
-                                                  </span>
-                                                  <span className="text-lg font-normal">{methodMeta.label}</span>
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => remove(idx)}
-                                                    className="ml-auto text-red-500 hover:text-red-700 text-2xl font-bold rounded transition cursor-pointer"
-                                                    title="Remove method"
-                                                  >
-                                                    ×
-                                                  </button>
-                                                </div>
-                                                <div className="p-4">
-                                                  <FieldArray name={`methods[${idx}].values`}>
-                                                    {({ push: pushValue, remove: removeValue }) => (
-                                                      <div className="mb-2 space-y-2">
-                                                        {method.values.map((val, vIdx) => {
-                                                          let fieldName;
-                                                          let fieldElement;
+                                                  <img src="/icons/ui/reorder.svg" alt="Reorder" className="w-6 h-6 opacity-70" />
+                                                </span>
+                                                <span className="mr-3 flex-shrink-0">
+                                                  <img src={methodMeta.icon} alt={methodMeta.label} className="w-7 h-7" />
+                                                </span>
+                                                <span className="text-lg font-normal">{methodMeta.label}</span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => remove(idx)}
+                                                  className="ml-auto text-red-500 hover:text-red-700 text-2xl font-bold rounded transition cursor-pointer"
+                                                  title="Remove method"
+                                                >
+                                                  ×
+                                                </button>
+                                              </div>
+                                              <div className="p-4">
+                                                <FieldArray name={`methods[${idx}].values`}>
+                                                  {({ push: pushValue, remove: removeValue }) => (
+                                                    <div className="mb-2 space-y-2">
+                                                      {method.values.map((val, vIdx) => {
+                                                        let fieldName;
+                                                        let fieldElement;
 
-                                                          if (method.method === "online form") {
-                                                            // Online form
-                                                            fieldName = `methods[${idx}].values[${vIdx}].value`;
-                                                            let url = val.value.trim();
-                                                            let urlFieldRef;
+                                                        if (method.method === "online form") {
+                                                          // Online form
+                                                          fieldName = `methods[${idx}].values[${vIdx}].value`;
+                                                          let url = val.value.trim();
+                                                          let urlFieldRef;
 
-                                                            fieldElement = (
-                                                              <>
-                                                                <Field
-                                                                  key={vIdx}
-                                                                  name={fieldName}
-                                                                  type="text"
-                                                                  className="w-full px-3 py-2 border border-gray-300 rounded [&:not(:first-child)]:mt-1"
-                                                                  onChange={e => {
-                                                                    setFieldValue(`methods[${idx}].values[${vIdx}].value`, e.target.value);
-                                                                    setFieldValue(`methods[${idx}].values[${vIdx}].verified`, false);
-                                                                  }}
-                                                                  innerRef={el => { urlFieldRef = el }}
-                                                                  placeholder={methodMeta.placeholder}
-                                                                />
-                                                                <LinkVerificationButton
-                                                                  enabled={isUrlValid(url)}
-                                                                  verified={val.verified}
-                                                                  onClick={() => {
-                                                                    setLinkPreviewOpen(true);
-                                                                    setLinkPreview({ url: url, fieldPath: `methods[${idx}].values[${vIdx}].verified`, attachedField: urlFieldRef });
-                                                                  }}
-                                                                />
-                                                              </>
-                                                            )
-                                                          } else if (method.method === "phone") {
-                                                            // Phone
-                                                            fieldName = `methods[${idx}].values[${vIdx}]`;
-                                                            
-                                                            fieldElement = (
-                                                              <Field name={fieldName} key={vIdx}>
-                                                                {({ field, form }) => (
-                                                                  <PhoneInput
-                                                                    country={"us"}
-                                                                    value={field.value || ""}
-                                                                    onChange={value => form.setFieldValue(field.name, value || "")}
-                                                                    containerClass="!w-auto"
-                                                                  />
-                                                                )}
-                                                              </Field>
-                                                            );
-                                                          } else {
-                                                            // Everything else
-                                                            fieldName = `methods[${idx}].values[${vIdx}]`;
-
-                                                            fieldElement = (
+                                                          fieldElement = (
+                                                            <>
                                                               <Field
                                                                 key={vIdx}
                                                                 name={fieldName}
                                                                 type="text"
                                                                 className="w-full px-3 py-2 border border-gray-300 rounded [&:not(:first-child)]:mt-1"
+                                                                onChange={e => {
+                                                                  setFieldValue(`methods[${idx}].values[${vIdx}].value`, e.target.value);
+                                                                  setFieldValue(`methods[${idx}].values[${vIdx}].verified`, false);
+                                                                }}
+                                                                innerRef={el => { urlFieldRef = el }}
                                                                 placeholder={methodMeta.placeholder}
                                                               />
-                                                            );
-                                                          }
-
-                                                          return (
-                                                            <Fragment key={vIdx}>
-                                                              <div className="flex items-center gap-2">
-                                                                {fieldElement}
-                                                                {method.values.length > 1 && (
-                                                                  <button
-                                                                    type="button"
-                                                                    className="text-red-500 hover:text-red-700 text-lg font-bold rounded transition cursor-pointer px-2"
-                                                                    onClick={() => removeValue(vIdx)}
-                                                                    title="Remove this value"
-                                                                  >
-                                                                    ×
-                                                                  </button>
-                                                                )}
-                                                              </div>
-                                                              <ErrorMessage
-                                                                name={fieldName}
-                                                                component="div"
-                                                                className="text-red-500 text-xs form-error-message"
+                                                              <LinkVerificationButton
+                                                                enabled={isUrlValid(url)}
+                                                                verified={val.verified}
+                                                                onClick={() => {
+                                                                  setLinkPreviewOpen(true);
+                                                                  setLinkPreview({ url: url, fieldPath: `methods[${idx}].values[${vIdx}].verified`, attachedField: urlFieldRef });
+                                                                }}
                                                               />
-                                                            </Fragment>
+                                                            </>
+                                                          )
+                                                        } else if (method.method === "phone") {
+                                                          // Phone
+                                                          fieldName = `methods[${idx}].values[${vIdx}]`;
+
+                                                          fieldElement = (
+                                                            <Field name={fieldName} key={vIdx}>
+                                                              {({ field, form }) => (
+                                                                <PhoneInput
+                                                                  country={"us"}
+                                                                  value={field.value || ""}
+                                                                  onChange={value => form.setFieldValue(field.name, value || "")}
+                                                                  containerClass="!w-auto"
+                                                                />
+                                                              )}
+                                                            </Field>
                                                           );
-                                                        })}
-                                                        <div className="flex mt-2 items-center">
-                                                          <button
-                                                            type="button"
-                                                            className="bg-blue-50 text-blue-700 px-3 py-1 rounded hover:bg-blue-100 transition text-sm flex items-center hover:cursor-pointer"
-                                                            onClick={() => pushValue(methodMeta.defaultValue)}
-                                                            title={methodMeta.addLabel}
-                                                          >
-                                                            + {methodMeta.addLabel}
-                                                          </button>
-                                                          {/* URL verification error for online forms */}
-                                                          { method.method === "online form" &&
-                                                            submitCount > lastMethodAddSubmitCount &&
-                                                            typeof errors.methods[idx] === "object" &&
-                                                            Array.isArray(errors.methods[idx].values) &&
-                                                            errors.methods[idx].values.some(error => error.verified)
-                                                            && (
-                                                              <span className="text-red-500 text-xs font-bold ml-3 form-error-message">
-                                                                All links must be verified.
-                                                              </span>
-                                                            )
-                                                          }
-                                                        </div>
+                                                        } else {
+                                                          // Everything else
+                                                          fieldName = `methods[${idx}].values[${vIdx}]`;
+
+                                                          fieldElement = (
+                                                            <Field
+                                                              key={vIdx}
+                                                              name={fieldName}
+                                                              type="text"
+                                                              className="w-full px-3 py-2 border border-gray-300 rounded [&:not(:first-child)]:mt-1"
+                                                              placeholder={methodMeta.placeholder}
+                                                            />
+                                                          );
+                                                        }
+
+                                                        return (
+                                                          <Fragment key={vIdx}>
+                                                            <div className="flex items-center gap-2">
+                                                              {fieldElement}
+                                                              {method.values.length > 1 && (
+                                                                <button
+                                                                  type="button"
+                                                                  className="text-red-500 hover:text-red-700 text-lg font-bold rounded transition cursor-pointer px-2"
+                                                                  onClick={() => removeValue(vIdx)}
+                                                                  title="Remove this value"
+                                                                >
+                                                                  ×
+                                                                </button>
+                                                              )}
+                                                            </div>
+                                                            <ErrorMessage
+                                                              name={fieldName}
+                                                              component="div"
+                                                              className="text-red-500 text-xs form-error-message"
+                                                            />
+                                                          </Fragment>
+                                                        );
+                                                      })}
+                                                      <div className="flex mt-2 items-center">
+                                                        <button
+                                                          type="button"
+                                                          className="bg-blue-50 text-blue-700 px-3 py-1 rounded hover:bg-blue-100 transition text-sm flex items-center hover:cursor-pointer"
+                                                          onClick={() => pushValue(methodMeta.defaultValue)}
+                                                          title={methodMeta.addLabel}
+                                                        >
+                                                          + {methodMeta.addLabel}
+                                                        </button>
+                                                        {/* URL verification error for online forms */}
+                                                        {method.method === "online form" &&
+                                                          submitCount > lastMethodAddSubmitCount &&
+                                                          typeof errors.methods[idx] === "object" &&
+                                                          Array.isArray(errors.methods[idx].values) &&
+                                                          errors.methods[idx].values.some(error => error.verified)
+                                                          && (
+                                                            <span className="text-red-500 text-xs font-bold ml-3 form-error-message">
+                                                              All links must be verified.
+                                                            </span>
+                                                          )
+                                                        }
                                                       </div>
-                                                    )}
-                                                  </FieldArray>
-                                                  <div className="flex flex-row gap-4 mb-1 items-center">
-                                                    <span className="font-medium text-sm">Accepts:</span>
-                                                    {ACCEPTS_OPTIONS.map(opt => (
-                                                      <label key={opt.value} className="flex items-center space-x-1">
-                                                        <Field
-                                                          type="checkbox"
-                                                          name={`methods[${idx}].accepts`}
-                                                          value={opt.value}
-                                                        />
-                                                        <span className="text-sm">{opt.label}</span>
-                                                      </label>
-                                                    ))}
-                                                  </div>
-                                                  <ErrorMessage
-                                                    name={`methods[${idx}].accepts`}
-                                                    component="div"
-                                                    className="text-red-500 text-xs form-error-message"
-                                                  />
-                                                  <Field
-                                                    name={`methods[${idx}].notes`}
-                                                    as="textarea"
-                                                    placeholder="Notes"
-                                                    className="mt-2 w-full border rounded px-3 py-2 resize-none overflow-y-auto"
-                                                    rows={2}
-                                                  />
+                                                    </div>
+                                                  )}
+                                                </FieldArray>
+                                                <div className="flex flex-row gap-4 mb-1 items-center">
+                                                  <span className="font-medium text-sm">Accepts:</span>
+                                                  {ACCEPTS_OPTIONS.map(opt => (
+                                                    <label key={opt.value} className="flex items-center space-x-1">
+                                                      <Field
+                                                        type="checkbox"
+                                                        name={`methods[${idx}].accepts`}
+                                                        value={opt.value}
+                                                      />
+                                                      <span className="text-sm">{opt.label}</span>
+                                                    </label>
+                                                  ))}
                                                 </div>
+                                                <ErrorMessage
+                                                  name={`methods[${idx}].accepts`}
+                                                  component="div"
+                                                  className="text-red-500 text-xs form-error-message"
+                                                />
+                                                <Field
+                                                  name={`methods[${idx}].notes`}
+                                                  as="textarea"
+                                                  placeholder="Notes"
+                                                  className="mt-2 w-full border rounded px-3 py-2 resize-none overflow-y-auto"
+                                                  rows={2}
+                                                />
                                               </div>
-                                            )}
-                                          </Draggable>
-                                        );
-                                      })
+                                            </div>
+                                          )}
+                                        </Draggable>
+                                      );
+                                    })
                                     : null}
                                   {provided.placeholder}
                                 </div>
@@ -745,7 +728,7 @@ export default function JurisdictionInfoForm() {
               <Modal
                 open={jurisdictionCreatorOpen}
                 onOpenChange={setJurisdictionCreatorOpen}>
-                  <JurisdicionCreationForm hide={() => setJurisdictionCreatorOpen(false)}/>
+                <JurisdicionCreationForm hide={() => setJurisdictionCreatorOpen(false)} />
               </Modal>
               <Modal
                 open={linkPreviewOpen}
@@ -770,7 +753,7 @@ export default function JurisdictionInfoForm() {
               <Modal
                 open={feedbackFormOpen}
                 onOpenChange={setFeedbackFormOpen}>
-                <FeedbackForm hide={() => setFeedbackFormOpen(false)}/>
+                <FeedbackForm hide={() => setFeedbackFormOpen(false)} />
               </Modal>
             </>
           )

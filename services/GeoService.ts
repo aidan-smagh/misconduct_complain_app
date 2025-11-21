@@ -1,9 +1,12 @@
+import { JurisdictionInfo } from "@/lib/types/jurisdiction";
+import { NominatimSuggestion } from "@/lib/types/nominatim";
+
 export async function geocodeAddress(address) {
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(address)}`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&polygon_geojson=1&q=${encodeURIComponent(address)}`);
     const data = await res.json();
 
-    return data;
+    return data as NominatimSuggestion[];
   } catch (error) {
     console.error("Geocoding error:", error);
     return null;
@@ -12,9 +15,12 @@ export async function geocodeAddress(address) {
 
 export async function reverseGeocode(lat, lng) {
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`,);
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&polygon_geojson=1`);
     const data = await res.json();
-    console.log(data);
+
+    if (data.error) {
+      return null;
+    }
 
     return data;
   } catch (error) {
@@ -23,18 +29,12 @@ export async function reverseGeocode(lat, lng) {
   }
 }
 
-export async function findJurisdictionByAddress(address) {
+export async function findJurisdictionByCoordinate(lat, lon) {
   try {
-    const res = await fetch("/api/find_jurisdiction_by_address", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(address),
-    });
+    const res = await fetch(`/api/find_jurisdiction_by_coordinates?lat=${lat}&lon=${lon}`);
     const data = await res.json();
 
-    return data;
+    return data as JurisdictionInfo;
   } catch (error) {
     return null;
   }

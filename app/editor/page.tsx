@@ -3,10 +3,10 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import Modal from "@/components/Modal";
-import JurisdicionCreationForm from "@/components/jurisdiction_info_editor/JurisdictionCreationForm";
+import JurisdicionCreationForm from "@/app/editor/[jurisdiction_id]/_components/JurisdictionCreationForm";
 
 const JurisdictionSelector = dynamic(
-  () => import("@/components/jurisdiction_info_editor/JurisdictionSelector"),
+  () => import("@/app/editor/[jurisdiction_id]/_components/JurisdictionSelector"),
   { ssr: false }
 );
 

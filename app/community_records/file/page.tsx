@@ -39,7 +39,7 @@ export default function FilingWizard() {
             Yes, I’ve filed before
           </Link>
           <Link
-            href="/create_account?redirect=%2Fcommunity_records%2Fcreate_record"
+            href="/register?redirect=%2Fcommunity_records%2Fcreate_record"
             className="bg-gray-100 hover:bg-gray-200 text-center px-8 py-5 rounded-lg text-lg font-medium border border-gray-300"
           >
             No, I’m new here
