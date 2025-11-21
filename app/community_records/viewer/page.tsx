@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { drawGroupedBarChart, BarData } from "./groupedBarChart";
-import { drawLineChartByLocationAndStatus } from "./lineGraph";
+import { drawGroupedBarChart, BarData } from "@/lib/client/visualization/groupedBarChart";
+import { drawLineChartByLocationAndStatus } from "@/lib/client/visualization/lineGraph";
 import * as d3 from "d3";
 
 interface Counts {
