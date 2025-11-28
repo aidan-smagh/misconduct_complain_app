@@ -1,9 +1,13 @@
 "use client";
 
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
-import { VALIDATION_SCHEMA } from "@/lib/validation/record_schema";
+import { VALIDATION_SCHEMA } from "@/lib/validation/complaint_record_schema";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { AuthenticatedSubmission } from "@/lib/types/account";
+import { ComplaintRecord } from "@/lib/types/community_tracker";
+import { auth } from "@/lib/client/firebaseConfig";
+import { useState } from "react";
 
 const JurisdictionSelector = dynamic(
   () => import("@/app/editor/[jurisdiction_id]/_components/JurisdictionSelector"),
@@ -27,9 +31,34 @@ const STATUS_OPTIONS = [
   "Withdrawn",
 ];
 
+// Convert date to value compatible with date input (local time)
+function toDateOnly(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function CreateRecordPage() {
   const router = useRouter();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toDateOnly(new Date());
+
+  // Check if logged in
+  const [authReady, setAuthReady] = useState(false);
+
+  // Wait until auth is ready
+  if (!authReady) {
+    auth.authStateReady().then(() => {
+      setAuthReady(true);
+    });
+
+    return null;
+  }
+
+  if (!auth.currentUser) {
+    router.push("/login?redirect=/community_records/create_record");
+  }
 
   return (
     <div className="py-10 flex justify-center">
@@ -37,13 +66,13 @@ export default function CreateRecordPage() {
         <Formik
           initialValues={{
             when: today,
-            jurisdiction: "",
+            jurisdiction: null,
             category: "",
             details: "",
             status: "",
             updates: [],
             resolution: {
-              date: today,
+              date: "",
               details: "",
               satisfaction: 3,
             },
@@ -51,10 +80,15 @@ export default function CreateRecordPage() {
           validationSchema={VALIDATION_SCHEMA}
           onSubmit={async (values, { resetForm }) => {
             try {
-              const res = await fetch("/api/create_record", {
+              const body: AuthenticatedSubmission<ComplaintRecord> = {
+                idToken: await auth.currentUser.getIdToken(),
+                data: values,
+              };
+
+              const res = await fetch("/api/create_complaint_record", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(values),
+                body: JSON.stringify(body),
               });
 
               if (!res.ok) {
@@ -88,7 +122,7 @@ export default function CreateRecordPage() {
                     name="when"
                     type="date"
                     className="px-3 py-2 border border-gray-300 rounded"
-                    value={values.when || today}
+                    value={values.when}
                     max={today}
                   />
                   <ErrorMessage
@@ -194,7 +228,7 @@ export default function CreateRecordPage() {
                               name={`updates[${idx}].date`}
                               type="date"
                               className="px-3 py-2 border border-gray-300 rounded"
-                              value={update.date || today}
+                              value={update.date}
                               max={today}
                             />
                             <div className="flex flex-col grow">
@@ -253,26 +287,38 @@ export default function CreateRecordPage() {
                 <div className="text-xl font-bold mb-4 text-gray-800">
                   Resolution
                 </div>
-                <label className="block font-medium mb-1">Resolution Date</label>
-                <Field
-                  name={`resolution.date`}
-                  type="date"
-                  className="w-fit px-3 py-2 mb-4 border border-gray-300 rounded"
-                  max={today}
-                />
-                <Field
-                  as="textarea"
-                  name="resolution.details"
-                  className="w-full border rounded px-3 py-2 resize-y"
-                  rows={4}
-                  placeholder="Details"
-                />
-                <ErrorMessage
-                  name="resolution.details"
-                  component="div"
-                  className="text-red-500 text-xs"
-                />
-                <label className="block font-medium mt-4 mb-2">Satisfaction</label>
+                <div className="mb-6">
+                  <label className="block font-medium mb-1">Resolution Date</label>
+                  <Field
+                    name={`resolution.date`}
+                    type="date"
+                    className="w-fit px-3 py-2 border border-gray-300 rounded"
+                    max={today}
+                  />
+                  <ErrorMessage
+                    name="resolution.date"
+                    component="div"
+                    className="text-red-500 text-xs"
+                  />
+                </div>
+
+                <div className="mb-6">
+                  <label className="block font-medium mb-1">Resolution Details</label>
+                  <Field
+                    as="textarea"
+                    name="resolution.details"
+                    className="w-full border rounded px-3 py-2 resize-y"
+                    rows={4}
+                    placeholder="Details"
+                  />
+                  <ErrorMessage
+                    name="resolution.details"
+                    component="div"
+                    className="text-red-500 text-xs"
+                  />
+                </div>
+                
+                <label className="block font-medium mb-2">Satisfaction</label>
                 <div className="flex flex-col mb-2">
                   <div className="relative flex items-center justify-between w-48 mb-1">
                     <span className="text-xs text-gray-500">Least</span>
