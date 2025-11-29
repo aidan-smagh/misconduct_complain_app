@@ -5,7 +5,6 @@ import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import * as Yup from "yup";
 
 import { VALIDATION_SCHEMA } from "@/lib/validation/jurisdiction_info_schema";
 
@@ -276,7 +275,7 @@ export default function JurisdictionInfoForm() {
                                     exclude={jurisdictionId}
                                     onChange={(option) => {
                                       setFieldValue("defer", option);
-                                      updateDefer(option.value);
+                                      updateDefer(Array.isArray(option) ? "" : option.value);
                                     }}
                                     onBlur={field.onBlur}
                                   />

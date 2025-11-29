@@ -3,7 +3,10 @@ export type ComplaintRecord = {
   lastModified?: Date,
   authorId?: string,
   when: string,
-  jurisdiction: string,
+  jurisdiction: {
+    value: string,
+    label: string
+  },
   category: string,
   details: string,
   status: string,

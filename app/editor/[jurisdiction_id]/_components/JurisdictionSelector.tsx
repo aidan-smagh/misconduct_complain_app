@@ -7,17 +7,21 @@ interface Option {
   label: string;
 }
 
+interface JurisdictionSelectorProps {
+  value?: Option | Option[];
+  exclude?: any;
+  isMulti?: boolean;
+  onChange?: (value: Option | Option[]) => void;
+  onBlur?: () => void;
+}
+
 export default function JurisdictionSelector({
   value,
   exclude,
+  isMulti,
   onChange,
   onBlur,
-}: {
-  value?: any;
-  exclude?: any;
-  onChange?: (value: any) => void;
-  onBlur?: () => void;
-}) {
+}: JurisdictionSelectorProps) {
   const [defaultOptions, setDefaultOptions] = useState<Option[]>();
 
   const loadOptions = useCallback(
@@ -51,6 +55,7 @@ export default function JurisdictionSelector({
       loadOptions={loadOptions}
       value={value}
       placeholder="Search for a jurisdiction"
+      isMulti={isMulti}
       onChange={onChange}
       onBlur={onBlur}
       styles={{

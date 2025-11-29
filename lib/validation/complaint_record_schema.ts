@@ -29,13 +29,16 @@ export const VALIDATION_SCHEMA = Yup.object({
   resolution: Yup.object({
     date: Yup.string(),
     details: Yup.string(),
-    satisfaction: Yup.number().min(1).max(5).required("Required"),
+    satisfaction: Yup.number().min(1).max(5),
   })
     .noUnknown()
-    .required("Required")
     .test(
       "resolution-check",
       function (value, ctx) {
+        if (!value) {
+          return true;
+        }
+        
         // Require other fields if user has started filling out section
         const hasDate = !!value.date;
         const hasDetails = !!value.details && value.details.trim() !== "";
@@ -50,5 +53,5 @@ export const VALIDATION_SCHEMA = Yup.object({
 
         return true;
       }
-    ),
+    )
 }).noUnknown();

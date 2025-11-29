@@ -1,8 +1,10 @@
 "use client";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { drawGroupedBarChart, BarData } from "@/lib/client/visualization/groupedBarChart";
 import { drawLineChartByLocationAndStatus } from "@/lib/client/visualization/lineGraph";
 import * as d3 from "d3";
+import JurisdictionSelector from "@/app/editor/[jurisdiction_id]/_components/JurisdictionSelector";
+import { ComplaintRecord } from "@/lib/types/community_tracker";
 
 interface Counts {
   submitted: number;
@@ -14,107 +16,65 @@ interface CategoryCounts {
   [category: string]: Counts;
 }
 
-interface RecordType {
-  location: string;
-  category: string;
-  status: string;
-  date: string; // ISO string
-}
-
 interface LegendProps {
   colors: Record<string, string>;
 }
-
-interface MultiSelectDropdownProps {
-  options: string[];
-  selected: string[];
-  onChange: (selected: string[]) => void;
-  placeholder?: string;
-}
-
-const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
-  options,
-  selected,
-  onChange,
-  placeholder = "Select locations..."
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const toggleOption = (option: string) => {
-    if (selected.includes(option)) {
-      onChange(selected.filter(item => item !== option));
-    } else {
-      onChange([...selected, option]);
-    }
-  };
-
-  const removeOption = (option: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    onChange(selected.filter(item => item !== option));
-  };
-
-    return (
-    <div className="relative w-full" ref={dropdownRef}>
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        className="min-h-[42px] w-full px-4 py-2 bg-white border border-gray-300 rounded-md cursor-pointer flex items-center justify-between hover:border-gray-400"
-      >
-        <div className="flex flex-wrap gap-1 flex-1">
-          {selected.length === 0 ? (
-            <span className="text-gray-500">{placeholder}</span>
-          ) : (
-            selected.map(item => (
-              <span key={item} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">
-                {item}
-                <span className="cursor-pointer hover:text-blue-900" onClick={(e) => removeOption(item, e)}>×</span>
-              </span>
-            ))
-          )}
-        </div>
-        <span className={`ml-2 ${isOpen ? 'transform rotate-180' : ''}`}>▼</span>
-      </div>
-
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-gray-50">
-            <button onClick={() => onChange(options)} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-              Select All
-            </button>
-            <button onClick={() => onChange([])} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-              Clear All
-            </button>
-          </div>
-          {options.map(option => (
-            <div
-              key={option}
-              onClick={() => toggleOption(option)}
-              className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 cursor-pointer"
-            >
-              <span className="text-sm">{option}</span>
-              {selected.includes(option) && <span className="text-blue-600">✓</span>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 interface TimeRangeFilterProps {
   selectedRange: string;
   onRangeChange: (range: string) => void;
 }
+
+function getCategoryFromStatus(status: string) {
+  switch (status) {
+    case "Filed":
+    case "Withdrawn":
+      return "submitted";
+    case "Under Review":
+      return "inProgress";
+    case "Resolved":
+    case "Dismissed":
+      return "addressed";
+    default:
+      return undefined;
+  }
+}
+
+function summarizeRecords(data: ComplaintRecord[]) {
+  const summary: Record<string, CategoryCounts> = {};
+
+  data.forEach((record) => {
+    const jurisdictionId = record.jurisdiction?.value;
+    const category = record.category;
+    const status = record.status;
+
+    // Categorize by jurisdiction
+    if (!summary[jurisdictionId]) {
+      summary[jurisdictionId] = {};
+    }
+
+    // Categorize by status
+    const categorySummary = summary[jurisdictionId];
+
+    if (!categorySummary[category]) {
+      categorySummary[category] = { submitted: 0, inProgress: 0, addressed: 0 };
+    }
+
+    const categoryKey = getCategoryFromStatus(status);
+
+    if (categoryKey) {
+      categorySummary[category][categoryKey] += 1;
+    }
+  });
+
+  return summary;
+};
+
+const LoadingScreen: React.FC = () => (
+  <div className="flex flex-col items-center justify-center h-screen">
+    <div className="text-lg text-gray-600">Loading data...</div>
+  </div>
+);
 
 const TimeRangeFilter: React.FC<TimeRangeFilterProps> = ({
   selectedRange,
@@ -164,85 +124,62 @@ const colorScale = d3.scaleOrdinal()
   .range(["#f56565", "#ed8936", "#48bb78"]);
 
 const Community_tracker = () => {
-  const [records, setRecords] = useState<RecordType[]>([]);
-  const [summary, setSummary] = useState<Record<string, CategoryCounts>>({});
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [records, setRecords] = useState<ComplaintRecord[]>([]);
+  const [gisIndex, setGisIndex] = useState<Record<string, { name: string }>>({});
+
+  const [openLocationDetails, setOpenLocationDetails] = useState<string | null>(null);
+
+  const [selectedLocations, setSelectedLocations] = useState<{ value: string; label: string }[]>([]);
   const [selectedTimeRange, setSelectedTimeRange] = useState('all');
 
-  useEffect(() => {
-    fetchRecords();
-  }, []);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    summarizeRecords(records);
-  }, [records]);
+  const summary = useMemo(() => summarizeRecords(records), [records]);
 
-  const fetchRecords = async () => {
-    const req = await fetch("/api/records");
-    const recordsData: RecordType[] = await req.json();
-    setRecords(recordsData);
-    summarizeRecords(recordsData);
-  };
+  const filteredRecords = useMemo(() => {
+    if (selectedLocations.length === 0) {
+      return records;
+    }
 
-  const summarizeRecords = (data: RecordType[]) => {
-    const summaryObj: Record<string, CategoryCounts> = {};
-    data.forEach((record) => {
-      const { location, category, status } = record;
-      if (!summaryObj[location]) summaryObj[location] = {};
-      if (!summaryObj[location][category]) {
-        summaryObj[location][category] = { submitted: 0, inProgress: 0, addressed: 0 };
-      }
-      if (status === "submitted") summaryObj[location][category].submitted += 1;
-      else if (status === "received update") summaryObj[location][category].inProgress += 1;
-      else if (status === "addressed") summaryObj[location][category].addressed += 1;
-    });
-    setSummary(summaryObj);
-    setSelectedLocations(Object.keys(summaryObj));
-  };
+    const locationIds = new Set(selectedLocations.map(loc => loc.value));
 
-  const toggleDropdown = (location: string) => {
-    setOpenDropdown(prev => (prev === location ? null : location));
-  };
-
-  const filteredRecords = React.useMemo(() => {
     return records.filter(record => {
-      if (selectedTimeRange === 'all') return true;
-    
-      const recordDate = new Date(record.date);
+      // Location filter
+      if (!locationIds.has(record.jurisdiction.value)) {
+        return false;
+      }
+
+      // Recency filter
+      if (selectedTimeRange === 'all') {
+        return true;
+      }
+
+      const recordDate = new Date(record.when);
       const now = new Date();
       const monthsAgo = new Date();
       monthsAgo.setMonth(now.getMonth() - parseInt(selectedTimeRange));
-    
       // Reset time to start of day for accurate comparison
       recordDate.setHours(0, 0, 0, 0);
       monthsAgo.setHours(0, 0, 0, 0);
-    
+
       return recordDate >= monthsAgo;
     });
-  }, [records, selectedTimeRange]);
+  }, [records, selectedLocations, selectedTimeRange]);
+
+  const toggleLocationCategories = (location: string) => {
+    setOpenLocationDetails(prev => (prev === location ? null : location));
+  };
 
   // Draw grouped bar chart
-  useEffect(() => {
+  const drawSummaryChart = () => {
+    // Clear chart
     d3.select("#chart").selectAll("*").remove();
-  
+
     if (Object.keys(summary).length > 0) {
       const chartData: BarData[] = [];
 
       // Create filtered summary from filteredRecords
-      const filteredSummary: Record<string, CategoryCounts> = {};
-      filteredRecords.forEach((record) => {
-        const { location, category, status } = record;
-        if (!selectedLocations.includes(location)) return;
-      
-        if (!filteredSummary[location]) filteredSummary[location] = {};
-        if (!filteredSummary[location][category]) {
-          filteredSummary[location][category] = { submitted: 0, inProgress: 0, addressed: 0 };
-        }
-        if (status === "submitted") filteredSummary[location][category].submitted += 1;
-        else if (status === "received update") filteredSummary[location][category].inProgress += 1;
-        else if (status === "addressed") filteredSummary[location][category].addressed += 1;
-      });
+      const filteredSummary: Record<string, CategoryCounts> = summarizeRecords(filteredRecords);
 
       if (Object.keys(filteredSummary).length === 0) {
         // Display "no data" message
@@ -255,83 +192,104 @@ const Community_tracker = () => {
         return;
       }
 
-      Object.entries(filteredSummary).forEach(([location, categories]) => {
+      Object.entries(filteredSummary).forEach(([locationId, categories]) => {
+        const locationName = gisIndex[locationId]?.name || locationId;
         Object.entries(categories).forEach(([category, counts]) => {
-          chartData.push({ group: location, category: "submitted", value: counts.submitted });
-          chartData.push({ group: location, category: "inProgress", value: counts.inProgress });
-          chartData.push({ group: location, category: "addressed", value: counts.addressed });
+          chartData.push({ group: locationName, category: "Submitted", value: counts.submitted });
+          chartData.push({ group: locationName, category: "In Progress", value: counts.inProgress });
+          chartData.push({ group: locationName, category: "Addressed", value: counts.addressed });
         });
       });
 
       drawGroupedBarChart({ selector: "#chart", data: chartData });
     }
-}, [summary, selectedLocations, filteredRecords]);
-
+  };
 
   // Draw line chart with date-based x-axis
-// Draw line chart with date-based x-axis
-  useEffect(() => {
-    // Always clear the chart first
+  const drawLineChart = () => {
+    // Clear chart
     d3.select("#linechart").selectAll("*").remove();
-  
-    if (filteredRecords.length > 0 && selectedLocations.length > 0) {
-      const lineData = filteredRecords
-        .filter(r => selectedLocations.includes(r.location))
-        .map(r => ({
-          date: new Date(r.date),
-          location: r.location,
-          status: r.status === "submitted" ? "submitted" : r.status === "received update" ? "inProgress" : "addressed"
-        }));
 
-      if (lineData.length === 0) {
-        d3.select("#linechart")
-          .append("div")
-          .attr("class", "flex items-center justify-center h-40")
-          .append("p")
-          .attr("class", "text-gray-500 text-lg")
-          .text("No data available for the selected time range and locations");
-        return;
-      }
+    if (filteredRecords.length > 0) {
+      // Aggregate by date, location, and status
+      const aggregated: Record<string, Record<string, Record<string, number>>> = {};
 
-    // Aggregate by date, location, and status
-    const aggregated: Record<string, Record<string, Record<string, number>>> = {};
-    lineData.forEach(d => {
-      const key = d.date.toISOString().split("T")[0];
-      if (!aggregated[key]) aggregated[key] = {};
-      if (!aggregated[key][d.location]) aggregated[key][d.location] = { submitted: 0, inProgress: 0, addressed: 0 };
-      aggregated[key][d.location][d.status] = (aggregated[key][d.location][d.status] || 0) + 1;
+      for (const record of filteredRecords) {
+        const key = new Date(record.when).toISOString().split("T")[0];
+        const locId = record.jurisdiction.value;
+        const category = getCategoryFromStatus(record.status);
+
+        // Date bins
+        if (!aggregated[key]) {
+          aggregated[key] = {};
+        }
+
+        // Location bins
+        if (!aggregated[key][locId]) {
+          aggregated[key][locId] = { submitted: 0, inProgress: 0, addressed: 0 };
+        }
+
+        // Status bins
+        aggregated[key][locId][category] = (aggregated[key][locId][category] || 0) + 1;
+      };
+
+      const finalLineData = Object.entries(aggregated).flatMap(([date, locations]) =>
+        Object.entries(locations).flatMap(([locationId, statuses]) =>
+          Object.entries(statuses).map(([status, count]) => ({
+            date: new Date(date),
+            location: gisIndex[locationId]?.name || locationId,
+            status,
+            value: count
+          }))
+        )
+      );
+
+      // Sort by date
+      finalLineData.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+      console.log(finalLineData);
+
+      drawLineChartByLocationAndStatus({
+        selector: "#linechart",
+        data: finalLineData,
+        locations: selectedLocations.map(loc => loc.value)
+      });
+    } else {
+      d3.select("#linechart")
+        .append("div")
+        .attr("class", "flex items-center justify-center h-40")
+        .append("p")
+        .attr("class", "text-gray-500 text-lg")
+        .text("No data available for the selected time range and locations");
+      return;
+    }
+  };
+
+  // Load data
+  useEffect(() => {
+    setLoading(true);
+
+    Promise.all([
+      fetch("/api/get_gis_index").then(res => res.json()),
+      fetch("/api/get_complaint_records").then(res => res.json())
+    ]).then(([indexData, recordsData]) => {
+      setGisIndex(indexData);
+      setRecords(recordsData);
+      setSelectedLocations([]); // Show all data by default
+      setLoading(false);
     });
+  }, []);
 
-    const finalLineData = Object.entries(aggregated).flatMap(([date, locations]) =>
-      Object.entries(locations).flatMap(([location, statuses]) =>
-        Object.entries(statuses).map(([status, count]) => ({
-          date: new Date(date),
-          location,
-          status,
-          value: count
-        }))
-      )
-    );
+  // Draw charts
+  useEffect(() => {
+    drawSummaryChart();
+    drawLineChart();
+  }, [selectedLocations, selectedTimeRange]);
 
-    // Sort by date
-    finalLineData.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-    drawLineChartByLocationAndStatus({ 
-      selector: "#linechart", 
-      data: finalLineData, 
-      locations: selectedLocations 
-    });
-  } else {
-    d3.select("#linechart")
-      .append("div")
-      .attr("class", "flex items-center justify-center h-40")
-      .append("p")
-      .attr("class", "text-gray-500 text-lg")
-      .text(filteredRecords.length === 0 
-        ? "No data available for the selected time range" 
-        : "Please select at least one location to view the chart");
+  // Loading screen
+  if (loading) {
+    return <LoadingScreen />;
   }
-}, [filteredRecords, selectedLocations]);
 
   return (
     <div className="flex flex-col items-center bg-gray-100">
@@ -342,13 +300,15 @@ const Community_tracker = () => {
         This page contains community-reported cases when they filed a police complaint in Allegheny County. The data will not be complete since not all community members use this website. We show only the counts, and nothing personal is collected or shown here. We also show data from the last one year.
       </p>
       <div className="flex items-center justify-center mt-6 space-x-4">
-        <a href="/create_record" className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-md">
+        <a href="/community_records/file" className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-md">
           + Add Record
         </a>
-        <a href="/update_record/update_portal" className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-md">
+        <a href="/community_records/update" className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-md">
           Update Record
         </a>
       </div>
+
+      <div className="text-xl text-red-600 font-bold mt-8">The following records are not real and only for demonstration purposes</div>
 
       <div className="mt-10 w-3/4">
         <table className="w-full min-w-[600px] border-collapse border border-gray-300 text-center">
@@ -375,16 +335,16 @@ const Community_tracker = () => {
                   <React.Fragment key={location}>
                     <tr className={index % 2 === 0 ? "bg-gray-50" : "bg-gray-100"}>
                       <td className="py-4 border flex justify-between items-center px-4">
-                        <span>{location}</span>
-                        <button onClick={() => toggleDropdown(location)}>
-                          {openDropdown === location ? "−" : "+"}
+                        <span>{gisIndex[location]?.name || location}</span>
+                        <button onClick={() => toggleLocationCategories(location)}>
+                          {openLocationDetails === location ? "−" : "+"}
                         </button>
                       </td>
                       <td className="py-4 border">{total.submitted}</td>
                       <td className="py-4 border">{total.inProgress}</td>
                       <td className="py-4 border">{total.addressed}</td>
                     </tr>
-                    {openDropdown === location &&
+                    {openLocationDetails === location &&
                       Object.entries(categories).map(([category, counts]) => (
                         <tr key={category} className="bg-gray-200">
                           <td className="py-4 border pl-8">{category}</td>
@@ -412,20 +372,18 @@ const Community_tracker = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2 align=middle">
             Filter Locations
           </label>
-          <MultiSelectDropdown
-            options={Object.keys(summary)}
-            selected={selectedLocations}
-            onChange={setSelectedLocations}
-            placeholder="Select locations to display..."
-          />
-          <p className="mt-2 text-sm text-gray-600 text-center">
-            Showing {selectedLocations.length} of {Object.keys(summary).length} location(s)
-          </p>
+          <div>
+            <JurisdictionSelector
+              value={selectedLocations}
+              isMulti={true}
+              onChange={options => setSelectedLocations(options as { value: string; label: string }[])}
+            />
+          </div>
         </div>
         <div className="mt-6">
           <TimeRangeFilter
-          selectedRange={selectedTimeRange}
-          onRangeChange={setSelectedTimeRange}
+            selectedRange={selectedTimeRange}
+            onRangeChange={setSelectedTimeRange}
           />
         </div>
 

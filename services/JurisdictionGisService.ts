@@ -1,7 +1,7 @@
 import { JurisidictionGisInfo } from "@/lib/types/jurisdiction";
 import Fuse from 'fuse.js';
 
-export async function findJurisdictionsByName(query, exclude?) {
+export async function findJurisdictionsByName(query: string, exclude?: string) {
   let jurisdictions: { id: string; name: string }[];
 
   try {
