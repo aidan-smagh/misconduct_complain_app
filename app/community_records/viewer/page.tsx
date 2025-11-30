@@ -137,33 +137,28 @@ const Community_tracker = () => {
   const summary = useMemo(() => summarizeRecords(records), [records]);
 
   const filteredRecords = useMemo(() => {
-    if (selectedLocations.length === 0) {
-      return records;
+    let filtered = records;
+
+    if (selectedLocations.length > 0) {
+      const locationIds = new Set(selectedLocations.map(loc => loc.value));
+      filtered = filtered.filter(record => locationIds.has(record.jurisdiction.value));
     }
 
-    const locationIds = new Set(selectedLocations.map(loc => loc.value));
+    if (selectedTimeRange !== 'all') {
+      filtered = filtered.filter(record => {
+        const recordDate = new Date(record.when);
+        const now = new Date();
+        const monthsAgo = new Date();
+        monthsAgo.setMonth(now.getMonth() - parseInt(selectedTimeRange));
+        // Reset time to start of day for accurate comparison
+        recordDate.setHours(0, 0, 0, 0);
+        monthsAgo.setHours(0, 0, 0, 0);
 
-    return records.filter(record => {
-      // Location filter
-      if (!locationIds.has(record.jurisdiction.value)) {
-        return false;
-      }
+        return recordDate >= monthsAgo;
+      });
+    }
 
-      // Recency filter
-      if (selectedTimeRange === 'all') {
-        return true;
-      }
-
-      const recordDate = new Date(record.when);
-      const now = new Date();
-      const monthsAgo = new Date();
-      monthsAgo.setMonth(now.getMonth() - parseInt(selectedTimeRange));
-      // Reset time to start of day for accurate comparison
-      recordDate.setHours(0, 0, 0, 0);
-      monthsAgo.setHours(0, 0, 0, 0);
-
-      return recordDate >= monthsAgo;
-    });
+    return filtered;
   }, [records, selectedLocations, selectedTimeRange]);
 
   const toggleLocationCategories = (location: string) => {
