@@ -16,7 +16,7 @@ interface ChartOptions {
 export function drawGroupedBarChart({
   selector,
   data,
-  width = 800,
+  width = 1000,
   height = 400,
 }: ChartOptions) {
   const svg = d3
@@ -25,7 +25,7 @@ export function drawGroupedBarChart({
     .attr("width", width)
     .attr("height", height);
 
-  const margin = { top: 40, right: 30, bottom: 40, left: 60 };
+  const margin = { top: 40, right: 30, bottom: 120, left: 60 };  // Changed bottom from 40 to 120
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
 
@@ -37,16 +37,22 @@ export function drawGroupedBarChart({
   const groups = Array.from(new Set(data.map(d => d.group)));
   const subgroups = Array.from(new Set(data.map(d => d.category)));
 
-  const x0 = d3.scaleBand().domain(groups).range([0, chartWidth]).padding(0.1);
+  const x0 = d3.scaleBand().domain(groups).range([0, chartWidth]).padding(0.4);
   const x1 = d3.scaleBand().domain(subgroups).range([0, x0.bandwidth()]).padding(0.05);
   const y = d3.scaleLinear().domain([0, d3.max(data, d => d.value)!]).nice().range([chartHeight, 0]);
   const color = d3.scaleOrdinal<string>().domain(subgroups).range(["#f56565", "#ed8936", "#48bb78"]);
 
-  // Axes
+  // X-axis with slanted labels
   g.append("g")
     .attr("transform", `translate(0,${chartHeight})`)
-    .call(d3.axisBottom(x0));
+    .call(d3.axisBottom(x0))
+    .selectAll("text")
+    .attr("transform", "rotate(-45)")       // Rotate the labels
+    .style("text-anchor", "end")            // Anchor at the end
+    .attr("dx", "-0.8em")                   // Fine-tune horizontal position
+    .attr("dy", "0.15em");                  // Fine-tune vertical position
 
+  // Y-axis
   g.append("g").call(d3.axisLeft(y).tickValues(d3.range(0, Math.ceil(d3.max(data, d => d.value)! + 1))).tickFormat(d3.format("d")));
 
   // Tooltip
@@ -86,8 +92,9 @@ export function drawGroupedBarChart({
         tooltip.style("opacity", 0);
       });
 
-      const legend = svg.append("g")
-    .attr("transform", `translate(${margin.left}, ${height - margin.bottom + 20})`); // adjust position
+  // Legend - moved to top to avoid overlap with slanted labels
+  const legend = svg.append("g")
+    .attr("transform", `translate(${margin.left}, 20)`);  // Moved to top
 
   subgroups.forEach((key, i) => {
     const xOffset = i * 100;
